@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<meta name="theme-color" content="#1A4B8C"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<title>Portal do Candidato — Óticas Carol</title>
+<link rel="canonical" href="https://tatianabernardo2015-lab.github.io/admissao-oticascarol/portal_candidato_oticas_carol.html"/>
+<meta property="og:title" content="Admissão Digital — Óticas Carol"/>
+<meta property="og:description" content="Portal de preenchimento de dados para admissão nas Óticas Carol"/>
+<meta property="og:type" content="website"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#F3F4F6;min-height:100vh;color:#111827}
+.header{background:#1A4B8C;padding:16px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.logo{width:40px;height:40px;background:#F5C518;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;color:#1A4B8C;font-size:14px;flex-shrink:0}
+.header-text{color:white}
+.header-text h1{font-size:16px;font-weight:700}
+.header-text p{font-size:11px;opacity:.75;margin-top:1px}
+
+/* Steps nav */
+.steps{display:flex;background:white;border-bottom:1px solid #E5E7EB;overflow-x:auto;scrollbar-width:none}
+.steps::-webkit-scrollbar{display:none}
+.step{display:flex;flex-direction:column;align-items:center;padding:10px 14px;min-width:70px;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;flex:1}
+.step.ativo{border-bottom-color:#1A4B8C}
+.step-num{width:24px;height:24px;border-radius:50%;background:#E5E7EB;color:#6B7280;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-bottom:3px;transition:all .2s}
+.step.ativo .step-num{background:#1A4B8C;color:white}
+.step.ok .step-num{background:#16A34A;color:white}
+.step-label{font-size:9px;color:#9CA3AF;text-align:center;line-height:1.3;font-weight:500}
+.step.ativo .step-label{color:#1A4B8C;font-weight:600}
+
+.container{max-width:520px;margin:0 auto;padding:20px 16px 100px}
+
+/* Cards */
+.card{background:white;border-radius:16px;padding:22px;margin-bottom:16px;border:1px solid #E5E7EB}
+.card-title{font-size:16px;font-weight:700;color:#111827;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.card-sub{font-size:13px;color:#6B7280;line-height:1.5;margin-bottom:18px}
+
+/* Form */
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px}
+.field label .req{color:#DC2626}
+.field input,.field select,.field textarea{width:100%;border:1.5px solid #E5E7EB;border-radius:10px;padding:13px 14px;font-size:15px;color:#111827;outline:none;background:white;transition:border-color .2s;font-family:inherit;-webkit-appearance:none}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:#1A4B8C;box-shadow:0 0 0 3px rgba(26,75,140,.08)}
+.field input.erro,.field select.erro{border-color:#DC2626}
+.field .hint{font-size:11px;color:#9CA3AF;margin-top:5px}
+.field .msg-erro{font-size:11px;color:#DC2626;margin-top:5px;display:none}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fgrid .fcol2{grid-column:1/-1}
+
+/* Upload docs */
+.doc-item{background:white;border:1.5px solid #E5E7EB;border-radius:14px;padding:16px;margin-bottom:12px;display:flex;align-items:center;gap:14px;transition:border-color .2s}
+.doc-item.enviado{border-color:#BBF7D0;background:#F0FDF4}
+.doc-icone{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:22px}
+.doc-icone.obr{background:#EFF6FF;color:#1A4B8C}
+.doc-icone.opt{background:#F9FAFB;color:#6B7280}
+.doc-info{flex:1;min-width:0}
+.doc-nome{font-size:14px;font-weight:600;color:#111827;margin-bottom:2px}
+.doc-desc{font-size:12px;color:#9CA3AF;margin-bottom:4px}
+.doc-badge-obr{display:inline-block;background:#FEE2E2;color:#DC2626;font-size:10px;font-weight:600;padding:1px 7px;border-radius:10px}
+.doc-badge-opt{display:inline-block;background:#F3F4F6;color:#6B7280;font-size:10px;font-weight:500;padding:1px 7px;border-radius:10px}
+.doc-status{font-size:11px;color:#16A34A;font-weight:500;margin-top:4px;display:none}
+.doc-item.enviado .doc-status{display:block}
+.doc-btn{flex-shrink:0}
+.doc-btn label{display:flex;align-items:center;gap:6px;padding:9px 14px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;border:1.5px solid}
+.doc-btn-obr{background:#EFF6FF;border-color:#BFDBFE!important;color:#1A4B8C}
+.doc-btn-ok{background:#F0FDF4;border-color:#BBF7D0!important;color:#16A34A}
+.doc-btn input[type=file]{display:none}
+
+/* Progress */
+.prog-bar-wrap{height:8px;background:#E5E7EB;border-radius:4px;overflow:hidden;margin-bottom:6px}
+.prog-bar{height:100%;background:#1A4B8C;border-radius:4px;transition:width .4s}
+
+/* Botões */
+.btn-next{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid #E5E7EB;padding:14px 20px;display:flex;gap:10px;z-index:50;max-width:100%}
+.btn-primary{flex:1;background:#1A4B8C;color:white;border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-secondary{background:white;border:1.5px solid #E5E7EB;border-radius:12px;padding:15px 18px;font-size:14px;font-weight:600;cursor:pointer;color:#6B7280}
+.btn-primary:disabled{background:#9CA3AF;cursor:not-allowed}
+.btn-primary i,.btn-secondary i{font-size:18px}
+
+/* Tela inicial */
+.boas-vindas{text-align:center;padding:8px 0 20px}
+.bv-emoji{font-size:56px;margin-bottom:12px}
+.bv-nome{font-size:22px;font-weight:700;color:#111827;margin-bottom:6px}
+.bv-sub{font-size:14px;color:#6B7280;line-height:1.6;margin-bottom:20px}
+.bv-info{background:#F9FAFB;border-radius:12px;padding:16px;margin-bottom:16px;text-align:left}
+.bv-linha{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:13px;border-bottom:1px solid #F3F4F6}
+.bv-linha:last-child{border:none}
+.bv-icon{width:28px;text-align:center;color:#6B7280;font-size:15px}
+.bv-val{color:#111827;font-weight:500}
+
+/* LGPD */
+.lgpd{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:12px;padding:16px;margin-bottom:16px}
+.lgpd p{font-size:12px;color:#1E40AF;line-height:1.7;margin-bottom:12px}
+.lgpd label{display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:#1E40AF;font-weight:500}
+.lgpd input[type=checkbox]{width:20px;height:20px;accent-color:#1A4B8C;flex-shrink:0;margin-top:1px}
+
+/* Sucesso */
+.tela-sucesso{text-align:center;padding:40px 20px}
+.suc-icone{width:80px;height:80px;background:#F0FDF4;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:40px}
+.suc-titulo{font-size:22px;font-weight:700;color:#111827;margin-bottom:8px}
+.suc-sub{font-size:14px;color:#6B7280;line-height:1.7;margin-bottom:24px}
+.suc-proto{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:12px;padding:16px;font-size:14px;color:#1A4B8C;font-weight:600}
+
+/* Alert */
+.alerta{background:#FEF2F2;border:1px solid #FCA5A5;border-radius:10px;padding:12px 14px;font-size:12px;color:#DC2626;margin-bottom:12px;display:none}
+
+/* Picker select custom */
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">OC</div>
+  <div class="header-text">
+    <h1>Óticas Carol</h1>
+    <p>Portal de Admissão Digital</p>
+  </div>
+</div>
+
+<!-- STEPS -->
+<div class="steps" id="steps-nav">
+  <div class="step ativo" id="step-tab-0" onclick="irParaEtapa(0)">
+    <div class="step-num">1</div>
+    <div class="step-label">Boas-<br>vindas</div>
+  </div>
+  <div class="step" id="step-tab-1" onclick="irParaEtapa(1)">
+    <div class="step-num">2</div>
+    <div class="step-label">Dados<br>pessoais</div>
+  </div>
+  <div class="step" id="step-tab-2" onclick="irParaEtapa(2)">
+    <div class="step-num">3</div>
+    <div class="step-label">Endereço</div>
+  </div>
+  <div class="step" id="step-tab-3" onclick="irParaEtapa(3)">
+    <div class="step-num">4</div>
+    <div class="step-label">Bancário</div>
+  </div>
+  <div class="step" id="step-tab-4" onclick="irParaEtapa(4)">
+    <div class="step-num">5</div>
+    <div class="step-label">Trabalho</div>
+  </div>
+  <div class="step" id="step-tab-5" onclick="irParaEtapa(5)">
+    <div class="step-num">6</div>
+    <div class="step-label">Documentos</div>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ====== ETAPA 0 — BOAS-VINDAS ====== -->
+<div id="etapa-0">
+  <div class="card">
+    <div class="boas-vindas">
+      <div class="bv-emoji">🎉</div>
+      <div class="bv-nome" id="bv-nome">Parabéns!</div>
+      <div class="bv-sub">
+        Você foi aprovado(a) no processo seletivo das <strong>Óticas Carol</strong>!<br>
+        Seja muito bem-vindo(a) à nossa família 👓
+      </div>
+      <div class="bv-info">
+        <div class="bv-linha"><span class="bv-icon"><i class="ti ti-briefcase"></i></span><span class="bv-val" id="bv-cargo">—</span></div>
+        <div class="bv-linha"><span class="bv-icon"><i class="ti ti-building-store"></i></span><span class="bv-val" id="bv-unidade">—</span></div>
+        <div class="bv-linha"><span class="bv-icon"><i class="ti ti-calendar"></i></span><span class="bv-val" id="bv-data">—</span></div>
+        <div class="bv-linha"><span class="bv-icon"><i class="ti ti-hash"></i></span><span class="bv-val" id="bv-proto" style="color:#1A4B8C;font-family:monospace">—</span></div>
+      </div>
+    </div>
+    <div class="lgpd">
+      <p>Seus dados pessoais serão usados exclusivamente para fins de admissão, conforme a <strong>Lei Geral de Proteção de Dados (LGPD — Lei 13.709/2018)</strong>. Documentos armazenados de forma segura e criptografada.</p>
+      <label>
+        <input type="checkbox" id="chk-lgpd" onchange="atualizarBtnEtapa0()"/>
+        Li e aceito os termos. Autorizo o uso dos meus dados para fins de admissão nas Óticas Carol.
+      </label>
+    </div>
+    <div class="alerta" id="err-lgpd">⚠️ Aceite os termos para continuar.</div>
+  </div>
+</div>
+
+<!-- ====== ETAPA 1 — DADOS PESSOAIS ====== -->
+<div id="etapa-1" style="display:none">
+  <div class="card">
+    <div class="card-title"><i class="ti ti-user" style="color:#1A4B8C"></i> Dados pessoais</div>
+    <div class="card-sub">Preencha seus dados conforme constam nos documentos.</div>
+
+    <div class="field fcol2">
+      <label>Nome completo <span class="req">*</span></label>
+      <input type="text" id="p-nome" placeholder="Seu nome completo" autocomplete="name"/>
+    </div>
+    <div class="fgrid">
+      <div class="field">
+        <label>CPF <span class="req">*</span></label>
+        <input type="tel" id="p-cpf" placeholder="000.000.000-00" maxlength="14" oninput="mascaraCPF(this)"/>
+      </div>
+      <div class="field">
+        <label>Data de nascimento <span class="req">*</span></label>
+        <input type="date" id="p-nasc"/>
+      </div>
+      <div class="field">
+        <label>RG <span class="req">*</span></label>
+        <input type="text" id="p-rg" placeholder="0000000"/>
+      </div>
+      <div class="field">
+        <label>Órgão emissor</label>
+        <input type="text" id="p-rg-org" placeholder="SSP-RJ"/>
+      </div>
+      <div class="field">
+        <label>Sexo <span class="req">*</span></label>
+        <select id="p-sexo">
+          <option value="">Selecione</option>
+          <option>Masculino</option>
+          <option>Feminino</option>
+          <option>Prefiro não informar</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Estado civil <span class="req">*</span></label>
+        <select id="p-estado-civil">
+          <option value="">Selecione</option>
+          <option>Solteiro(a)</option>
+          <option>Casado(a)</option>
+          <option>Divorciado(a)</option>
+          <option>Viúvo(a)</option>
+          <option>União estável</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Nome da mãe <span class="req">*</span></label>
+      <input type="text" id="p-mae" placeholder="Nome completo da mãe" autocomplete="off"/>
+    </div>
+    <div class="field">
+      <label>Nome do pai</label>
+      <input type="text" id="p-pai" placeholder="Nome completo do pai (opcional)" autocomplete="off"/>
+    </div>
+    <div class="field">
+      <label>Grau de instrução <span class="req">*</span></label>
+      <select id="p-instrucao">
+        <option value="">Selecione</option>
+        <option>Fundamental incompleto</option>
+        <option>Fundamental completo</option>
+        <option>Médio incompleto</option>
+        <option>Médio completo</option>
+        <option>Superior incompleto</option>
+        <option>Superior completo</option>
+        <option>Pós-graduação</option>
+        <option>Mestrado</option>
+        <option>Doutorado</option>
+      </select>
+    </div>
+    <div class="fgrid">
+      <div class="field">
+        <label>Celular <span class="req">*</span></label>
+        <input type="tel" id="p-cel" placeholder="(21) 99999-9999" maxlength="15" oninput="mascaraTel(this)" autocomplete="tel"/>
+      </div>
+      <div class="field">
+        <label>E-mail <span class="req">*</span></label>
+        <input type="email" id="p-email" placeholder="seu@email.com" autocomplete="email"/>
+      </div>
+    </div>
+    <div class="alerta" id="err-etapa1">⚠️ Preencha todos os campos obrigatórios.</div>
+  </div>
+</div>
+
+<!-- ====== ETAPA 2 — ENDEREÇO ====== -->
+<div id="etapa-2" style="display:none">
+  <div class="card">
+    <div class="card-title"><i class="ti ti-map-pin" style="color:#1A4B8C"></i> Endereço</div>
+    <div class="card-sub">Informe seu endereço residencial atual.</div>
+
+    <div class="fgrid">
+      <div class="field">
+        <label>CEP <span class="req">*</span></label>
+        <input type="tel" id="e-cep" placeholder="00000-000" maxlength="9" oninput="mascaraCEP(this)" onblur="buscarCEP()"/>
+        <div class="hint">Digite o CEP para preencher automaticamente</div>
+      </div>
+      <div class="field">
+        <label>UF <span class="req">*</span></label>
+        <select id="e-uf">
+          <option value="">UF</option>
+          <option>AC</option><option>AL</option><option>AP</option><option>AM</option>
+          <option>BA</option><option>CE</option><option>DF</option><option>ES</option>
+          <option>GO</option><option>MA</option><option>MT</option><option>MS</option>
+          <option>MG</option><option>PA</option><option>PB</option><option>PR</option>
+          <option>PE</option><option>PI</option><option>RJ</option><option>RN</option>
+          <option>RS</option><option>RO</option><option>RR</option><option>SC</option>
+          <option>SP</option><option>SE</option><option>TO</option>
+        </select>
+      </div>
+      <div class="field fcol2">
+        <label>Logradouro <span class="req">*</span></label>
+        <input type="text" id="e-rua" placeholder="Rua, Avenida, Travessa..."/>
+      </div>
+      <div class="field">
+        <label>Número <span class="req">*</span></label>
+        <input type="text" id="e-num" placeholder="123"/>
+      </div>
+      <div class="field">
+        <label>Complemento</label>
+        <input type="text" id="e-comp" placeholder="Apto, Bloco..."/>
+      </div>
+      <div class="field">
+        <label>Bairro <span class="req">*</span></label>
+        <input type="text" id="e-bairro" placeholder="Bairro"/>
+      </div>
+      <div class="field">
+        <label>Cidade <span class="req">*</span></label>
+        <input type="text" id="e-cidade" placeholder="Cidade"/>
+      </div>
+    </div>
+    <div class="alerta" id="err-etapa2">⚠️ Preencha todos os campos obrigatórios.</div>
+  </div>
+</div>
+
+<!-- ====== ETAPA 3 — DADOS BANCÁRIOS ====== -->
+<div id="etapa-3" style="display:none">
+  <div class="card">
+    <div class="card-title"><i class="ti ti-credit-card" style="color:#1A4B8C"></i> Dados bancários</div>
+    <div class="card-sub">Informe a conta para recebimento do salário.</div>
+
+    <div class="field">
+      <label>Banco <span class="req">*</span></label>
+      <select id="b-banco">
+        <option value="">Selecione seu banco</option>
+        <option>001 - Banco do Brasil</option>
+        <option>033 - Santander</option>
+        <option>077 - Banco Inter</option>
+        <option>104 - Caixa Econômica Federal</option>
+        <option>237 - Bradesco</option>
+        <option>260 - Nu Pagamentos (Nubank)</option>
+        <option>341 - Itaú</option>
+        <option>336 - C6 Bank</option>
+        <option>422 - Safra</option>
+        <option>735 - Neon</option>
+        <option>748 - Sicredi</option>
+        <option>756 - Sicoob</option>
+        <option>Outro banco</option>
+      </select>
+    </div>
+    <div class="fgrid">
+      <div class="field">
+        <label>Agência <span class="req">*</span></label>
+        <input type="tel" id="b-agencia" placeholder="0000"/>
+      </div>
+      <div class="field">
+        <label>Conta <span class="req">*</span></label>
+        <input type="tel" id="b-conta" placeholder="00000-0"/>
+      </div>
+      <div class="field fcol2">
+        <label>Tipo de conta <span class="req">*</span></label>
+        <select id="b-tipo">
+          <option value="">Selecione</option>
+          <option>Conta corrente</option>
+          <option>Conta poupança</option>
+          <option>Conta salário</option>
+          <option>Conta de pagamento</option>
+        </select>
+      </div>
+    </div>
+    <div style="background:#F9FAFB;border-radius:12px;padding:16px;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:12px;display:flex;align-items:center;gap:8px">
+        <i class="ti ti-qrcode" style="color:#1A4B8C"></i> Chave PIX (opcional)
+      </div>
+      <div class="fgrid">
+        <div class="field">
+          <label>Tipo da chave</label>
+          <select id="b-pix-tipo" onchange="atualizarPlaceholderPix()">
+            <option value="">Sem PIX</option>
+            <option value="cpf">CPF</option>
+            <option value="telefone">Telefone</option>
+            <option value="email">E-mail</option>
+            <option value="aleatoria">Chave aleatória</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Chave PIX</label>
+          <input type="text" id="b-pix-chave" placeholder="—" disabled/>
+        </div>
+      </div>
+    </div>
+    <div class="alerta" id="err-etapa3">⚠️ Preencha banco, agência, conta e tipo de conta.</div>
+  </div>
+</div>
+
+<!-- ====== ETAPA 4 — DADOS TRABALHISTAS ====== -->
+<div id="etapa-4" style="display:none">
+  <div class="card">
+    <div class="card-title"><i class="ti ti-briefcase" style="color:#1A4B8C"></i> Dados trabalhistas</div>
+    <div class="card-sub">Informações da sua Carteira de Trabalho.</div>
+
+    <div class="field">
+      <label>PIS / PASEP / NIT</label>
+      <input type="tel" id="t-pis" placeholder="000.00000.00-0" maxlength="14" oninput="mascaraPIS(this)"/>
+      <div class="hint">Se não souber, deixe em branco — o RH irá orientar</div>
+    </div>
+    <div class="fgrid">
+      <div class="field">
+        <label>Número da CTPS <span class="req">*</span></label>
+        <input type="tel" id="t-ctps-num" placeholder="0000000"/>
+      </div>
+      <div class="field">
+        <label>Série</label>
+        <input type="text" id="t-ctps-serie" placeholder="000"/>
+      </div>
+      <div class="field">
+        <label>UF da CTPS</label>
+        <select id="t-ctps-uf">
+          <option value="">UF</option>
+          <option>AC</option><option>AL</option><option>AP</option><option>AM</option>
+          <option>BA</option><option>CE</option><option>DF</option><option>ES</option>
+          <option>GO</option><option>MA</option><option>MT</option><option>MS</option>
+          <option>MG</option><option>PA</option><option>PB</option><option>PR</option>
+          <option>PE</option><option>PI</option><option selected>RJ</option><option>RN</option>
+          <option>RS</option><option>RO</option><option>RR</option><option>SC</option>
+          <option>SP</option><option>SE</option><option>TO</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Data de emissão</label>
+        <input type="date" id="t-ctps-data"/>
+      </div>
+    </div>
+    <div style="background:#F9FAFB;border-radius:12px;padding:16px;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:12px">Informações adicionais</div>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:12px;font-size:14px;color:#374151">
+        <input type="checkbox" id="t-deficiencia" style="width:20px;height:20px;accent-color:#1A4B8C" onchange="toggleDeficiencia()"/>
+        Possuo deficiência (Lei de Cotas — art. 93 CLT)
+      </label>
+      <div id="t-deficiencia-tipo" style="display:none;margin-bottom:12px">
+        <div class="field" style="margin-bottom:0">
+          <label>Tipo de deficiência</label>
+          <select id="t-def-tipo">
+            <option value="">Selecione</option>
+            <option>Física</option><option>Visual</option><option>Auditiva</option>
+            <option>Mental</option><option>Intelectual</option><option>Múltipla</option>
+          </select>
+        </div>
+      </div>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:#374151">
+        <input type="checkbox" id="t-outro-emprego" style="width:20px;height:20px;accent-color:#1A4B8C"/>
+        Possuo outro emprego formal com carteira assinada
+      </label>
+    </div>
+    <div class="alerta" id="err-etapa4">⚠️ Informe pelo menos o número da CTPS.</div>
+  </div>
+</div>
+
+<!-- ====== ETAPA 5 — DOCUMENTOS ====== -->
+<div id="etapa-5" style="display:none">
+  <div class="card" style="padding:18px">
+    <div class="card-title"><i class="ti ti-files" style="color:#1A4B8C"></i> Envio de documentos</div>
+    <div class="card-sub">Fotografe ou selecione os arquivos. JPG, PNG ou PDF — máx. 10 MB cada.</div>
+    <!-- Progress -->
+    <div style="background:#F9FAFB;border-radius:10px;padding:12px 14px;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:#6B7280;margin-bottom:6px">
+        <span id="docs-prog-texto">0 de 4 obrigatórios enviados</span>
+        <span id="docs-prog-pct" style="color:#1A4B8C;font-weight:600">0%</span>
+      </div>
+      <div class="prog-bar-wrap"><div class="prog-bar" id="docs-prog-bar" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- OBRIGATÓRIOS -->
+  <div style="font-size:11px;font-weight:700;color:#DC2626;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;padding-left:4px">
+    ⚠ Obrigatórios
+  </div>
+
+  <div class="doc-item" id="di-1">
+    <div class="doc-icone obr"><i class="ti ti-id"></i></div>
+    <div class="doc-info">
+      <div class="doc-nome">RG ou CNH <span class="doc-badge-obr">Obrigatório</span></div>
+      <div class="doc-desc">Frente e verso — legível e sem cortes</div>
+      <div class="doc-status" id="ds-1">✓ Enviado</div>
+    </div>
+    <div class="doc-btn">
+      <label id="dl-1" class="doc-btn-obr"><input type="file" accept="image/*,.pdf" onchange="handleDoc(this,1,'RG/CNH')"/><i class="ti ti-camera"></i> Foto</label>
+    </div>
+  </div>
+
+  <div class="doc-item" id="di-2">
+    <div class="doc-icone obr"><i class="ti ti-file-certificate"></i></div>
+    <div class="doc-info">
+      <div class="doc-nome">CPF <span class="doc-badge-obr">Obrigatório</span></div>
+      <div class="doc-desc">Cadastro de Pessoa Física</div>
+      <div class="doc-status" id="ds-2">✓ Enviado</div>
+    </div>
+    <div class="doc-btn">
+      <label id="dl-2" class="doc-btn-obr"><input type="file" accept="image/*,.pdf" onchange="handleDoc(this,2,'CPF')"/><i class="ti ti-camera"></i> Foto</label>
+    </div>
+  </div>
+
+  <div class="doc-item" id="di-3">
+    <div class="doc-icone obr"><i class="ti ti-notebook"></i></div>
+    <div class="doc-info">
+      <div class="doc-nome">Carteira de Trabalho (CTPS) <span class="doc-badge-obr">Obrigatório</span></div>
+      <div class="doc-desc">Página com foto + última anotação</div>
+      <div class="doc-status" id="ds-3">✓ Enviado</div>
+    </div>
+    <div class="doc-btn">
+      <label id="dl-3" class="doc-btn-obr"><input type="file" accept="image/*,.pdf" onchange="handleDoc(this,3,'CTPS')"/><i class="ti ti-camera"></i> Foto</label>
+    </div>
+  </div>
+
+  <div class="doc-item" id="di-4">
+    <div class="doc-icone obr"><i class="ti ti-home"></i></div>
+    <div class="doc-info">
+      <div class="doc-nome">Comprovante de endereço <span class="doc-badge-obr">Obrigatório</span></div>
+      <div class="doc-desc">Emitido nos últimos 90 dias</div>
+      <div class="doc-status" id="ds-4">✓ Enviado</div>
+    </div>
+    <div class="doc-btn">
+      <label id="dl-4" class="doc-btn-obr"><input type="file" accept="image/*,.pdf" onchange="handleDoc(this,4,'Comprovante de endereço')"/><i class="ti ti-camera"></i> Foto</label>
+    </div>
+  </div>
+
+  <!-- OPCIONAIS -->
+  <div style="font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.8px;margin:16px 0 10px;padding-left:4px">
+    Opcionais (se já tiver)
+  </div>
+
+  <div class="doc-item" id="di-5">
+    <div class="doc-icone opt"><i class="ti ti-stethoscope"></i></div>
+    <div class="doc-info">
+      <div class="doc-nome">ASO – Atestado de saúde <span class="doc-badge-opt">Opcional</span></div>
+      <div class="doc-desc">Exame admissional (se já realizado)</div>
+      <div class="doc-status" id="ds-5">✓ Enviado</div>
+    </div>
+    <div class="doc-btn">
+      <label id="dl-5" style="background:#F9FAFB;border:1.5px solid #E5E7EB;color:#6B7280;border-radius:9px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="file" accept="image/*,.pdf" onchange="handleDoc(this,5,'ASO')"/><i class="ti ti-camera"></i> Foto</label>
+    </div>
+  </div>
+
+  <div class="doc-item" id="di-6">
+    <div class="doc-icone opt"><i class="ti ti-camera"></i></div>
+    <div class="doc-info">
+      <div class="doc-nome">Foto 3x4 <span class="doc-badge-opt">Opcional</span></div>
+      <div class="doc-desc">Fundo claro, rosto centralizado</div>
+      <div class="doc-status" id="ds-6">✓ Enviado</div>
+    </div>
+    <div class="doc-btn">
+      <label id="dl-6" style="background:#F9FAFB;border:1.5px solid #E5E7EB;color:#6B7280;border-radius:9px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="file" accept="image/*" onchange="handleDoc(this,6,'Foto 3x4')"/><i class="ti ti-camera"></i> Foto</label>
+    </div>
+  </div>
+
+  <div class="doc-item" id="di-7">
+    <div class="doc-icone opt"><i class="ti ti-credit-card"></i></div>
+    <div class="doc-info">
+      <div class="doc-nome">Dados bancários <span class="doc-badge-opt">Opcional</span></div>
+      <div class="doc-desc">Foto do cartão ou comprovante</div>
+      <div class="doc-status" id="ds-7">✓ Enviado</div>
+    </div>
+    <div class="doc-btn">
+      <label id="dl-7" style="background:#F9FAFB;border:1.5px solid #E5E7EB;color:#6B7280;border-radius:9px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="file" accept="image/*,.pdf" onchange="handleDoc(this,7,'Dados bancários')"/><i class="ti ti-camera"></i> Foto</label>
+    </div>
+  </div>
+
+  <div class="alerta" id="err-etapa5" style="margin-top:12px">⚠️ Envie os 4 documentos obrigatórios para continuar.</div>
+</div>
+
+<!-- ====== TELA DE SUCESSO ====== -->
+<div id="etapa-sucesso" style="display:none">
+  <div class="card">
+    <div class="tela-sucesso">
+      <div class="suc-icone">🎊</div>
+      <div class="suc-titulo">Tudo pronto!</div>
+      <div class="suc-sub">
+        Recebemos todos os seus dados e documentos com sucesso.<br>
+        O RH das <strong>Óticas Carol</strong> vai analisar e entrará em contato em breve.
+      </div>
+      <div class="suc-proto">
+        📋 Protocolo: <span id="suc-proto">—</span><br>
+        <div style="font-size:12px;font-weight:400;color:#6B7280;margin-top:6px">Guarde este número para consultas com o RH</div>
+      </div>
+      <div style="margin-top:20px;background:#EFF6FF;border-radius:12px;padding:16px;font-size:13px;color:#1E40AF;text-align:left">
+        <div style="font-weight:600;margin-bottom:8px">📞 Contato do RH:</div>
+        <div>📱 WhatsApp: <a href='https://wa.me/5521992918894' style='color:#1A4B8C'>(21) 99291-8894</a></div>
+        <div>📧 E-mail: <a href='mailto:adm.katz@oticascarol.com.br' style='color:#1A4B8C'>adm.katz@oticascarol.com.br</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<!-- BOTÕES FIXOS DE NAVEGAÇÃO -->
+<div class="btn-next" id="btn-nav">
+  <button class="btn-secondary" id="btn-voltar" onclick="voltarEtapa()" style="display:none">
+    <i class="ti ti-chevron-left"></i>
+  </button>
+  <button class="btn-primary" id="btn-avancar" onclick="avancarEtapa()" disabled>
+    Começar <i class="ti ti-arrow-right"></i>
+  </button>
+</div>
+
+<script>
+// ── Estado global ──────────────────────────────────────────────
+let etapaAtual = 0;
+const TOTAL_ETAPAS = 6;
+let docsEnviados = {};
+let dadosCandidato = {};
+
+// ── Lê parâmetros da URL ───────────────────────────────────────
+function lerParams(){
+  const p = new URLSearchParams(window.location.search);
+  const hash = window.location.hash;
+  let nome='', cargo='', unidade='', data='', proto='ADM-2025-0001';
+
+  if(p.get('nome'))     nome     = decodeURIComponent(p.get('nome'));
+  if(p.get('cargo'))    cargo    = decodeURIComponent(p.get('cargo'));
+  if(p.get('unidade'))  unidade  = decodeURIComponent(p.get('unidade'));
+  if(p.get('data'))     data     = decodeURIComponent(p.get('data'));
+  if(p.get('proto'))    proto    = decodeURIComponent(p.get('proto'));
+
+  // Também aceita via hash: #proto=ADM-2025-0001&nome=João
+  if(hash && hash.includes('=')) {
+    const hp = new URLSearchParams(hash.replace('#',''));
+    if(hp.get('nome'))    nome    = decodeURIComponent(hp.get('nome'));
+    if(hp.get('cargo'))   cargo   = decodeURIComponent(hp.get('cargo'));
+    if(hp.get('unidade')) unidade = decodeURIComponent(hp.get('unidade'));
+    if(hp.get('data'))    data    = decodeURIComponent(hp.get('data'));
+    if(hp.get('proto'))   proto   = decodeURIComponent(hp.get('proto'));
+  }
+
+  // Preenche boas-vindas
+  const nomeFirst = nome ? nome.split(' ')[0] : '';
+  document.getElementById('bv-nome').textContent = nomeFirst ? 'Parabéns, ' + nomeFirst + '!' : 'Parabéns!';
+  document.getElementById('bv-cargo').textContent    = cargo    || 'A confirmar com o RH';
+  document.getElementById('bv-unidade').textContent  = unidade  || 'Óticas Carol';
+  document.getElementById('bv-data').textContent     = data     || 'A confirmar com o RH';
+  document.getElementById('bv-proto').textContent    = proto;
+  document.getElementById('suc-proto').textContent   = proto;
+
+  // Pré-preenche nome no formulário
+  if(nome) document.getElementById('p-nome').value = nome;
+
+  dadosCandidato.proto   = proto;
+  dadosCandidato.nome    = nome;
+  dadosCandidato.cargo   = cargo;
+  dadosCandidato.unidade = unidade;
+}
+
+// ── Navegação entre etapas ────────────────────────────────────
+function mostrarEtapa(n){
+  for(let i=0;i<TOTAL_ETAPAS;i++){
+    const el = document.getElementById('etapa-'+i);
+    if(el) el.style.display = (i===n ? '' : 'none');
+  }
+  document.getElementById('etapa-sucesso').style.display='none';
+
+  // Atualiza tabs
+  for(let i=0;i<TOTAL_ETAPAS;i++){
+    const tab = document.getElementById('step-tab-'+i);
+    if(!tab) continue;
+    tab.classList.remove('ativo','ok');
+    if(i < n) tab.classList.add('ok');
+    if(i === n) tab.classList.add('ativo');
+  }
+
+  // Scroll topo
+  window.scrollTo({top:0, behavior:'smooth'});
+
+  // Botão voltar
+  document.getElementById('btn-voltar').style.display = n > 0 ? '' : 'none';
+
+  // Botão avançar
+  atualizarBtnAvançar();
+}
+
+function avancarEtapa(){
+  if(!validarEtapa(etapaAtual)) return;
+  if(etapaAtual === TOTAL_ETAPAS - 1){
+    // Finalizar
+    finalizarFormulario();
+    return;
+  }
+  etapaAtual++;
+  mostrarEtapa(etapaAtual);
+}
+
+function voltarEtapa(){
+  if(etapaAtual > 0){ etapaAtual--; mostrarEtapa(etapaAtual); }
+}
+
+function irParaEtapa(n){
+  if(n <= etapaAtual) { etapaAtual = n; mostrarEtapa(n); }
+}
+
+// ── Validações por etapa ──────────────────────────────────────
+function validarEtapa(n){
+  const erroId = ['err-lgpd','err-etapa1','err-etapa2','err-etapa3','err-etapa4','err-etapa5'][n];
+  const erroEl = document.getElementById(erroId);
+
+  if(n===0){
+    if(!document.getElementById('chk-lgpd').checked){
+      erroEl.style.display='block'; return false;
+    }
+    erroEl.style.display='none'; return true;
+  }
+  if(n===1){
+    const obr=['p-nome','p-cpf','p-nasc','p-rg','p-sexo','p-estado-civil','p-mae','p-instrucao','p-cel','p-email'];
+    for(const id of obr){
+      if(!document.getElementById(id).value.trim()){
+        erroEl.style.display='block'; document.getElementById(id).focus(); return false;
+      }
+    }
+    erroEl.style.display='none'; return true;
+  }
+  if(n===2){
+    const obr=['e-cep','e-uf','e-rua','e-num','e-bairro','e-cidade'];
+    for(const id of obr){
+      if(!document.getElementById(id).value.trim()){
+        erroEl.style.display='block'; document.getElementById(id).focus(); return false;
+      }
+    }
+    erroEl.style.display='none'; return true;
+  }
+  if(n===3){
+    const obr=['b-banco','b-agencia','b-conta','b-tipo'];
+    for(const id of obr){
+      if(!document.getElementById(id).value.trim()){
+        erroEl.style.display='block'; document.getElementById(id).focus(); return false;
+      }
+    }
+    erroEl.style.display='none'; return true;
+  }
+  if(n===4){
+    if(!document.getElementById('t-ctps-num').value.trim()){
+      erroEl.style.display='block'; document.getElementById('t-ctps-num').focus(); return false;
+    }
+    erroEl.style.display='none'; return true;
+  }
+  if(n===5){
+    const obr=[1,2,3,4];
+    for(const i of obr){ if(!docsEnviados[i]){ erroEl.style.display='block'; return false; } }
+    erroEl.style.display='none'; return true;
+  }
+  return true;
+}
+
+function atualizarBtnAvançar(){
+  const btn = document.getElementById('btn-avancar');
+  const labels = ['Começar','Próximo','Próximo','Próximo','Próximo','Enviar tudo ✓'];
+  const icons  = ['ti-arrow-right','ti-arrow-right','ti-arrow-right','ti-arrow-right','ti-arrow-right','ti-send'];
+  btn.innerHTML = labels[etapaAtual] + ' <i class="ti ' + icons[etapaAtual] + '"></i>';
+  btn.disabled = false;
+}
+
+function atualizarBtnEtapa0(){
+  // Habilita o botão se LGPD foi aceito
+  document.getElementById('err-lgpd').style.display='none';
+}
+
+// ── Upload de documentos ──────────────────────────────────────
+function handleDoc(input, id, nome){
+  if(!input.files||!input.files[0]) return;
+  const file = input.files[0];
+  if(file.size > 10*1024*1024){ alert('Arquivo muito grande! Máximo 10 MB.'); return; }
+
+  docsEnviados[id] = { nome, arquivo: file.name, tamanho: file.size };
+
+  // Visual: item vira verde
+  document.getElementById('di-'+id).classList.add('enviado');
+  document.getElementById('ds-'+id).style.display='block';
+  const label = document.getElementById('dl-'+id);
+  label.style.background='#F0FDF4';
+  label.style.borderColor='#BBF7D0';
+  label.style.color='#16A34A';
+  label.querySelector('i').className='ti ti-check';
+
+  // Atualiza progresso
+  const obr=[1,2,3,4];
+  const count = obr.filter(i=>docsEnviados[i]).length;
+  document.getElementById('docs-prog-texto').textContent = count + ' de 4 obrigatórios enviados';
+  document.getElementById('docs-prog-pct').textContent = Math.round(count/4*100)+'%';
+  document.getElementById('docs-prog-bar').style.width = (count/4*100)+'%';
+}
+
+// ── Finalizar ─────────────────────────────────────────────────
+function finalizarFormulario(){
+  if(!validarEtapa(5)) return;
+
+  // Coleta todos os dados
+  dadosCandidato = {
+    ...dadosCandidato,
+    nome:        document.getElementById('p-nome').value,
+    cpf:         document.getElementById('p-cpf').value,
+    nasc:        document.getElementById('p-nasc').value,
+    rg:          document.getElementById('p-rg').value,
+    rgOrg:       document.getElementById('p-rg-org').value,
+    sexo:        document.getElementById('p-sexo').value,
+    estCivil:    document.getElementById('p-estado-civil').value,
+    mae:         document.getElementById('p-mae').value,
+    pai:         document.getElementById('p-pai').value,
+    instrucao:   document.getElementById('p-instrucao').value,
+    celular:     document.getElementById('p-cel').value,
+    email:       document.getElementById('p-email').value,
+    cep:         document.getElementById('e-cep').value,
+    uf:          document.getElementById('e-uf').value,
+    rua:         document.getElementById('e-rua').value,
+    numero:      document.getElementById('e-num').value,
+    complemento: document.getElementById('e-comp').value,
+    bairro:      document.getElementById('e-bairro').value,
+    cidade:      document.getElementById('e-cidade').value,
+    banco:       document.getElementById('b-banco').value,
+    agencia:     document.getElementById('b-agencia').value,
+    conta:       document.getElementById('b-conta').value,
+    tipoConta:   document.getElementById('b-tipo').value,
+    pixTipo:     document.getElementById('b-pix-tipo').value,
+    pixChave:    document.getElementById('b-pix-chave').value,
+    pis:         document.getElementById('t-pis').value,
+    ctpsNum:     document.getElementById('t-ctps-num').value,
+    ctpsSerie:   document.getElementById('t-ctps-serie').value,
+    ctpsUf:      document.getElementById('t-ctps-uf').value,
+    deficiencia: document.getElementById('t-deficiencia').checked,
+    defTipo:     document.getElementById('t-def-tipo').value,
+    outroEmprego: document.getElementById('t-outro-emprego').checked,
+    documentos:  Object.keys(docsEnviados).map(k=>docsEnviados[k].nome),
+  };
+
+  // Monta mensagem para o RH via WhatsApp
+  const rh = '5521992918894';
+  const msg = montarMensagemRH(dadosCandidato);
+
+  // Mostra tela de sucesso
+  for(let i=0;i<TOTAL_ETAPAS;i++){
+    const el=document.getElementById('etapa-'+i);
+    if(el) el.style.display='none';
+  }
+  document.getElementById('etapa-sucesso').style.display='';
+  document.getElementById('btn-nav').style.display='none';
+
+  // Atualiza protocolo
+  document.getElementById('suc-proto').textContent = dadosCandidato.proto;
+
+  // Scroll topo
+  window.scrollTo({top:0,behavior:'smooth'});
+
+  // Abre WhatsApp com os dados para o RH (após 1.5s para candidato ver a tela)
+  setTimeout(()=>{
+    if(confirm('Seus dados foram registrados! ✅\n\nDeseja abrir o WhatsApp para finalizar o envio ao RH das Óticas Carol?')){
+      window.open('https://wa.me/'+rh+'?text='+encodeURIComponent(msg),'_blank');
+    }
+  }, 1500);
+}
+
+function montarMensagemRH(d){
+  const docs = d.documentos.join(', ') || 'Nenhum';
+  return '📋 *FICHA DE ADMISSÃO — Óticas Carol*\n' +
+    '━━━━━━━━━━━━━━━━━\n' +
+    '🆔 *Protocolo:* ' + d.proto + '\n\n' +
+    '*DADOS PESSOAIS*\n' +
+    '• Nome: ' + d.nome + '\n' +
+    '• CPF: ' + d.cpf + '\n' +
+    '• RG: ' + d.rg + ' (' + (d.rgOrg||'—') + ')\n' +
+    '• Nascimento: ' + (d.nasc||'—') + '\n' +
+    '• Sexo: ' + (d.sexo||'—') + '\n' +
+    '• Estado civil: ' + (d.estCivil||'—') + '\n' +
+    '• Mãe: ' + (d.mae||'—') + '\n' +
+    '• Escolaridade: ' + (d.instrucao||'—') + '\n' +
+    '• Celular: ' + d.celular + '\n' +
+    '• E-mail: ' + d.email + '\n\n' +
+    '*ENDEREÇO*\n' +
+    '• ' + (d.rua||'—') + ', ' + (d.numero||'—') + (d.complemento?' - '+d.complemento:'') + '\n' +
+    '• ' + (d.bairro||'—') + ' — ' + (d.cidade||'—') + '/' + (d.uf||'—') + '\n' +
+    '• CEP: ' + (d.cep||'—') + '\n\n' +
+    '*DADOS BANCÁRIOS*\n' +
+    '• Banco: ' + (d.banco||'—') + '\n' +
+    '• Agência: ' + (d.agencia||'—') + ' | Conta: ' + (d.conta||'—') + ' (' + (d.tipoConta||'—') + ')\n' +
+    (d.pixTipo ? '• PIX (' + d.pixTipo + '): ' + (d.pixChave||'—') + '\n' : '') + '\n' +
+    '*DADOS TRABALHISTAS*\n' +
+    '• PIS/NIT: ' + (d.pis||'Não informado') + '\n' +
+    '• CTPS: ' + (d.ctpsNum||'—') + ' Série ' + (d.ctpsSerie||'—') + ' UF ' + (d.ctpsUf||'—') + '\n' +
+    '• Deficiência: ' + (d.deficiencia ? 'Sim — ' + d.defTipo : 'Não') + '\n' +
+    '• Outro emprego formal: ' + (d.outroEmprego ? 'Sim' : 'Não') + '\n\n' +
+    '*DOCUMENTOS REGISTRADOS*\n' +
+    '• ' + docs + '\n\n' +
+    '━━━━━━━━━━━━━━━━━\n' +
+    '_Formulário preenchido pelo próprio candidato via portal digital._';
+}
+
+// ── Máscaras ──────────────────────────────────────────────────
+function mascaraCPF(el){
+  let v=el.value.replace(/\D/g,'');
+  if(v.length>3) v=v.slice(0,3)+'.'+v.slice(3);
+  if(v.length>7) v=v.slice(0,7)+'.'+v.slice(7);
+  if(v.length>11) v=v.slice(0,11)+'-'+v.slice(11);
+  el.value=v.slice(0,14);
+}
+function mascaraTel(el){
+  let v=el.value.replace(/\D/g,'');
+  if(v.length>2) v='('+v.slice(0,2)+') '+v.slice(2);
+  if(v.length>10) v=v.slice(0,10)+'-'+v.slice(10);
+  el.value=v.slice(0,15);
+}
+function mascaraCEP(el){
+  let v=el.value.replace(/\D/g,'');
+  if(v.length>5) v=v.slice(0,5)+'-'+v.slice(5);
+  el.value=v.slice(0,9);
+}
+function mascaraPIS(el){
+  let v=el.value.replace(/\D/g,'');
+  if(v.length>3) v=v.slice(0,3)+'.'+v.slice(3);
+  if(v.length>9) v=v.slice(0,9)+'.'+v.slice(9);
+  if(v.length>12) v=v.slice(0,12)+'-'+v.slice(12);
+  el.value=v.slice(0,14);
+}
+
+// ── Auto-preenchimento de endereço via CEP ────────────────────
+function buscarCEP(){
+  const cep=document.getElementById('e-cep').value.replace(/\D/g,'');
+  if(cep.length!==8) return;
+  fetch('https://viacep.com.br/ws/'+cep+'/json/')
+    .then(r=>r.json())
+    .then(d=>{
+      if(d.erro) return;
+      document.getElementById('e-rua').value   = d.logradouro||'';
+      document.getElementById('e-bairro').value= d.bairro||'';
+      document.getElementById('e-cidade').value= d.localidade||'';
+      document.getElementById('e-uf').value    = d.uf||'';
+      document.getElementById('e-num').focus();
+    }).catch(()=>{});
+}
+
+// ── PIX placeholder ───────────────────────────────────────────
+function atualizarPlaceholderPix(){
+  const tipo=document.getElementById('b-pix-tipo').value;
+  const input=document.getElementById('b-pix-chave');
+  const ph={cpf:'000.000.000-00',telefone:'(21) 99999-9999',email:'seu@email.com',aleatoria:'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'};
+  input.placeholder=ph[tipo]||'—';
+  input.disabled=!tipo;
+  if(!tipo) input.value='';
+}
+
+// ── Deficiência ───────────────────────────────────────────────
+function toggleDeficiencia(){
+  const show=document.getElementById('t-deficiencia').checked;
+  document.getElementById('t-deficiencia-tipo').style.display=show?'':'none';
+}
+
+// ── Init ──────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', ()=>{
+  lerParams();
+  mostrarEtapa(0);
+});
+</script>
+</body>
+</html>
