@@ -110,6 +110,9 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#F3F4F
 /* Picker select custom */
 select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
 </style>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 </head>
 <body>
 
@@ -596,6 +599,30 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 </div>
 
 <script>
+// ── Configuração Firebase — Admissão Digital Óticas Carol ───────
+const firebaseConfig = {
+  apiKey: "AIzaSyCR0G8-eAM5JrZsJ47X1kyJ_w1rT3raRAc",
+  authDomain: "admissao-oticas-carol.firebaseapp.com",
+  databaseURL: "https://admissao-oticas-carol-default-rtdb.firebaseio.com",
+  projectId: "admissao-oticas-carol",
+  storageBucket: "admissao-oticas-carol.firebasestorage.app",
+  messagingSenderId: "169902139265",
+  appId: "1:169902139265:web:428a42f3051725eb58ea80"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// Salva a ficha completa do candidato no Firebase
+function salvarNoFirebase(dados){
+  const chave = dados.proto.replace(/[^a-zA-Z0-9]/g, '_');
+  return db.ref('candidatos/' + chave).set({
+    ...dados,
+    documentos: dados.documentos || [],
+    enviadoEm: new Date().toISOString(),
+    status: 'aguardando_analise'
+  });
+}
+
 // ── Estado global ──────────────────────────────────────────────
 let etapaAtual = 0;
 const TOTAL_ETAPAS = 6;
@@ -824,6 +851,24 @@ function finalizarFormulario(){
   const rh = '5521992918894';
   const msg = montarMensagemRH(dadosCandidato);
 
+  // Mostra estado de carregamento no botão
+  const btnAvancar = document.getElementById('btn-avancar');
+  const btnTextoOriginal = btnAvancar.innerHTML;
+  btnAvancar.disabled = true;
+  btnAvancar.innerHTML = 'Salvando seus dados...';
+
+  // Salva no Firebase ANTES de mostrar a tela de sucesso
+  salvarNoFirebase(dadosCandidato).then(() => {
+    mostrarTelaSucesso(msg, rh);
+  }).catch((erro) => {
+    console.error('Erro ao salvar no Firebase:', erro);
+    btnAvancar.disabled = false;
+    btnAvancar.innerHTML = btnTextoOriginal;
+    alert('Ops! Não conseguimos salvar seus dados agora. Verifique sua conexão com a internet e tente novamente.');
+  });
+}
+
+function mostrarTelaSucesso(msg, rh){
   // Mostra tela de sucesso
   for(let i=0;i<TOTAL_ETAPAS;i++){
     const el=document.getElementById('etapa-'+i);
