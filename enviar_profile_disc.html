@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Enviar Profile DISC — Óticas Carol</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#1A4B8C;--blue-l:#EFF6FF;--blue-d:#0f2d5a;
+  --yellow:#F5C518;--yellow-l:#FFFBEB;
+  --purple:#7C3AED;--purple-l:#F5F3FF;--purple-b:#DDD6FE;
+  --green:#16A34A;--green-l:#F0FDF4;--green-b:#BBF7D0;
+  --gray:#6B7280;--gray-l:#F3F4F6;--border:#E5E7EB;
+  --r:10px;--rl:14px;--rxl:18px;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#111827;min-height:100vh}
+
+/* TOPBAR */
+.topbar{background:var(--blue);height:52px;padding:0 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.tlogo{display:flex;align-items:center;gap:10px;color:white;font-weight:700;font-size:16px}
+.tcirc{width:32px;height:32px;background:var(--yellow);border-radius:50%;display:flex;align-items:center;justify-content:center}
+.tcirc span{color:var(--blue);font-weight:900;font-size:12px}
+.tbadge{background:rgba(255,255,255,.15);color:white;font-size:11px;padding:3px 10px;border-radius:20px;font-weight:500}
+
+/* LAYOUT */
+.shell{max-width:560px;margin:0 auto;padding:24px 16px 40px}
+
+/* HEADER CARD */
+.hero{background:linear-gradient(135deg,var(--blue) 0%,#2563EB 100%);border-radius:var(--rxl);padding:24px;margin-bottom:20px;color:white;position:relative;overflow:hidden}
+.hero::before{content:'DISC';position:absolute;right:-10px;top:-10px;font-size:80px;font-weight:900;opacity:.07;color:white;letter-spacing:-4px}
+.hero-tag{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.15);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;margin-bottom:12px;letter-spacing:.5px}
+.hero h1{font-size:20px;font-weight:700;margin-bottom:6px}
+.hero p{font-size:13px;opacity:.8;line-height:1.6}
+
+/* CARD */
+.card{background:white;border-radius:var(--rl);padding:20px;margin-bottom:14px;border:1px solid var(--border)}
+.card-title{font-size:13px;font-weight:600;color:#374151;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card-title i{font-size:16px;color:var(--blue)}
+
+/* FORM */
+label{display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px}
+input, select{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--r);font-size:14px;color:#111827;outline:none;transition:border .15s;background:white;font-family:inherit}
+input:focus, select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,75,140,.08)}
+.field{margin-bottom:14px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* BOTÃO GERAR */
+.btn-gerar{width:100%;background:var(--blue);color:white;border:none;border-radius:var(--r);padding:13px;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s;margin-top:4px}
+.btn-gerar:hover{background:var(--blue-d)}
+.btn-gerar:active{transform:scale(.98)}
+
+/* RESULTADO */
+.resultado{display:none;margin-top:0}
+.resultado.show{display:block}
+
+.link-box{background:var(--blue-l);border:1.5px solid #BFDBFE;border-radius:var(--r);padding:12px 14px;display:flex;align-items:center;gap:10px;margin-bottom:12px;cursor:pointer;transition:border .15s}
+.link-box:hover{border-color:var(--blue)}
+.link-box i{font-size:18px;color:var(--blue);flex-shrink:0}
+.link-text{font-size:11px;color:var(--blue);font-family:monospace;flex:1;word-break:break-all;line-height:1.5}
+
+.btns-acao{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.btn-copiar{background:var(--blue);color:white;border:none;border-radius:var(--r);padding:12px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .15s}
+.btn-copiar:hover{background:var(--blue-d)}
+.btn-wpp{background:#25D366;color:white;border:none;border-radius:var(--r);padding:12px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:opacity .15s}
+.btn-wpp:hover{opacity:.88}
+
+.toast{display:none;background:var(--green-l);border:1px solid var(--green-b);border-radius:var(--r);padding:10px 14px;font-size:12px;color:#166534;align-items:center;gap:8px;margin-bottom:12px}
+.toast.show{display:flex}
+
+/* NOVO */
+.btn-novo{width:100%;background:white;color:var(--blue);border:1.5px solid var(--blue);border-radius:var(--r);padding:11px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:all .15s}
+.btn-novo:hover{background:var(--blue-l)}
+
+/* HISTÓRICO */
+.hist-item{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:var(--r);margin-bottom:8px;cursor:pointer;transition:border .15s}
+.hist-item:hover{border-color:#93C5FD;background:var(--blue-l)}
+.hist-avatar{width:38px;height:38px;border-radius:50%;background:var(--purple-l);color:var(--purple);font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.hist-info{flex:1}
+.hist-nome{font-size:13px;font-weight:600;color:#111827}
+.hist-sub{font-size:11px;color:#9CA3AF;margin-top:2px}
+.hist-copy{width:30px;height:30px;border-radius:8px;background:var(--blue-l);color:var(--blue);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.hist-copy:hover{background:#BFDBFE}
+
+.empty{text-align:center;padding:28px 0;color:#9CA3AF}
+.empty i{font-size:36px;display:block;margin-bottom:8px;opacity:.4}
+.empty p{font-size:13px}
+
+/* DISC MINI BADGES */
+.disc-info{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+.disc-badge{text-align:center;padding:10px 6px;border-radius:var(--r);font-size:11px;font-weight:600}
+.disc-badge span{display:block;font-size:18px;margin-bottom:4px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="tlogo">
+    <div class="tcirc"><span>OC</span></div>
+    Óticas Carol
+  </div>
+  <div class="tbadge">Profile DISC</div>
+</div>
+
+<div class="shell">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-tag"><i class="ti ti-brain"></i> AVALIAÇÃO COMPORTAMENTAL</div>
+    <h1>Enviar Profile DISC</h1>
+    <p>Gere um link personalizado para cada colaborador. Cada pessoa recebe sua própria avaliação individual e o relatório é salvo separadamente.</p>
+    <div class="disc-info">
+      <div class="disc-badge" style="background:rgba(220,38,38,.2);color:#FCA5A5"><span>🦁</span>Dominância</div>
+      <div class="disc-badge" style="background:rgba(245,158,11,.2);color:#FCD34D"><span>🦋</span>Influência</div>
+      <div class="disc-badge" style="background:rgba(22,163,74,.2);color:#86EFAC"><span>🦉</span>Estabilidade</div>
+      <div class="disc-badge" style="background:rgba(37,99,235,.2);color:#93C5FD"><span>🦅</span>Cautela</div>
+    </div>
+  </div>
+
+  <!-- FORMULÁRIO -->
+  <div class="card" id="card-form">
+    <div class="card-title"><i class="ti ti-user-plus"></i> Dados do colaborador</div>
+
+    <div class="field">
+      <label>Nome completo *</label>
+      <input type="text" id="inp-nome" placeholder="Ex: Maria Silva" oninput="atualizarLink()"/>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label>Cargo</label>
+        <input type="text" id="inp-cargo" placeholder="Ex: Vendedora" oninput="atualizarLink()"/>
+      </div>
+      <div class="field">
+        <label>Unidade</label>
+        <select id="inp-unidade" onchange="atualizarLink()">
+          <option value="">Selecione...</option>
+          <option>Gkanx Ótica</option>
+          <option>Abr Ótica</option>
+          <option>Foris Ótica</option>
+          <option>Binho Ótica</option>
+          <option>Bena Ótica</option>
+          <option>Ankat Ótica</option>
+          <option>Kale Ótica</option>
+          <option>Leib Ótica</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn-gerar" onclick="gerarLink()">
+      <i class="ti ti-link"></i> Gerar link personalizado
+    </button>
+  </div>
+
+  <!-- RESULTADO -->
+  <div class="resultado" id="resultado">
+    <div class="card">
+      <div class="card-title"><i class="ti ti-circle-check" style="color:var(--green)"></i> Link gerado para <span id="res-nome" style="color:var(--blue)">—</span></div>
+
+      <div class="link-box" onclick="copiarLink()" title="Clique para copiar">
+        <i class="ti ti-world"></i>
+        <div class="link-text" id="link-texto"></div>
+        <i class="ti ti-copy" style="font-size:16px;color:var(--blue);flex-shrink:0"></i>
+      </div>
+
+      <div class="toast" id="toast-copiado">
+        <i class="ti ti-circle-check"></i> Link copiado! Cole no WhatsApp, e-mail ou onde preferir.
+      </div>
+
+      <div class="btns-acao">
+        <button class="btn-copiar" onclick="copiarLink()">
+          <i class="ti ti-copy"></i> Copiar link
+        </button>
+        <button class="btn-wpp" onclick="enviarWhatsApp()">
+          <i class="ti ti-brand-whatsapp"></i> Enviar WhatsApp
+        </button>
+      </div>
+
+      <button class="btn-novo" onclick="novoEnvio()">
+        <i class="ti ti-plus"></i> Gerar link para outro colaborador
+      </button>
+    </div>
+  </div>
+
+  <!-- HISTÓRICO -->
+  <div class="card">
+    <div class="card-title"><i class="ti ti-history"></i> Enviados recentemente</div>
+    <div id="hist-lista">
+      <div class="empty"><i class="ti ti-inbox"></i><p>Nenhum link gerado ainda nesta sessão</p></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const BASE_URL = 'https://tatianabernardo2015-lab.github.io/admissao-oticascarol/profile_disc_%C3%B3ticas_carol.html';
+let linkAtual = '';
+let historico = [];
+let contador = 1;
+
+function gerarId(){
+  const ts = Date.now().toString(36).toUpperCase();
+  return 'DISC-' + ts;
+}
+
+function gerarLink(){
+  const nome = document.getElementById('inp-nome').value.trim();
+  if(!nome){ 
+    document.getElementById('inp-nome').focus();
+    document.getElementById('inp-nome').style.borderColor='#EF4444';
+    setTimeout(()=>document.getElementById('inp-nome').style.borderColor='',1500);
+    return; 
+  }
+
+  const cargo   = document.getElementById('inp-cargo').value.trim();
+  const unidade = document.getElementById('inp-unidade').value;
+  const id      = gerarId();
+
+  const url = BASE_URL
+    + '?id='    + encodeURIComponent(id)
+    + '&nome='  + encodeURIComponent(nome)
+    + (cargo    ? '&cargo='   + encodeURIComponent(cargo)   : '')
+    + (unidade  ? '&unidade=' + encodeURIComponent(unidade) : '');
+
+  linkAtual = url;
+
+  // Exibe resultado
+  document.getElementById('res-nome').textContent = nome;
+  document.getElementById('link-texto').textContent = url;
+  document.getElementById('resultado').classList.add('show');
+  document.getElementById('resultado').scrollIntoView({behavior:'smooth', block:'nearest'});
+
+  // Salva no histórico
+  const item = {id, nome, cargo, unidade, url, hora: new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})};
+  historico.unshift(item);
+  renderHistorico();
+}
+
+function atualizarLink(){
+  // Atualiza em tempo real se já existe um link gerado
+  if(!document.getElementById('resultado').classList.contains('show')) return;
+  const nome = document.getElementById('inp-nome').value.trim();
+  if(!nome) return;
+  gerarLink();
+}
+
+function copiarLink(){
+  if(!linkAtual) return;
+  navigator.clipboard.writeText(linkAtual).then(()=>{
+    const t = document.getElementById('toast-copiado');
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 3000);
+  }).catch(()=>{
+    prompt('Copie o link abaixo:', linkAtual);
+  });
+}
+
+function enviarWhatsApp(){
+  if(!linkAtual) return;
+  const nome = document.getElementById('inp-nome').value.trim() || 'colaborador(a)';
+  const msg = `Olá, ${nome}! 👋\n\nA Óticas Carol convida você a realizar sua Avaliação de Perfil Comportamental (DISC). É rápido, leva cerca de 5 minutos! 🎯\n\nAcesse pelo link abaixo:\n${linkAtual}\n\nQualquer dúvida, estou à disposição! 😊`;
+  window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent(msg), '_blank');
+}
+
+function novoEnvio(){
+  document.getElementById('inp-nome').value = '';
+  document.getElementById('inp-cargo').value = '';
+  document.getElementById('inp-unidade').value = '';
+  document.getElementById('resultado').classList.remove('show');
+  document.getElementById('toast-copiado').classList.remove('show');
+  linkAtual = '';
+  document.getElementById('inp-nome').focus();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function copiarDaLista(url, btn){
+  navigator.clipboard.writeText(url).then(()=>{
+    btn.innerHTML = '<i class="ti ti-check"></i>';
+    btn.style.background = '#D1FAE5';
+    btn.style.color = '#065F46';
+    setTimeout(()=>{
+      btn.innerHTML = '<i class="ti ti-copy" style="font-size:14px"></i>';
+      btn.style.background = '';
+      btn.style.color = '';
+    }, 2000);
+  }).catch(()=>{ prompt('Copie o link:', url); });
+}
+
+function renderHistorico(){
+  const el = document.getElementById('hist-lista');
+  if(historico.length === 0){
+    el.innerHTML = '<div class="empty"><i class="ti ti-inbox"></i><p>Nenhum link gerado ainda nesta sessão</p></div>';
+    return;
+  }
+  el.innerHTML = historico.slice(0,8).map((item, idx) => {
+    const initials = item.nome.split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase();
+    const sub = [item.cargo, item.unidade, item.hora].filter(Boolean).join(' · ');
+    return `<div class="hist-item">
+      <div class="hist-avatar">${initials}</div>
+      <div class="hist-info">
+        <div class="hist-nome">${item.nome}</div>
+        <div class="hist-sub">${sub}</div>
+      </div>
+      <button class="hist-copy" onclick="copiarDaLista('${item.url}',this)" title="Copiar link">
+        <i class="ti ti-copy" style="font-size:14px"></i>
+      </button>
+    </div>`;
+  }).join('');
+}
+
+// Inicializa
+renderHistorico();
+</script>
+
+</body>
+</html>
