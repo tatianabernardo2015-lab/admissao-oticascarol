@@ -1518,6 +1518,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
               <i class="ti ti-brand-whatsapp" style="font-size:16px"></i> WhatsApp do RH
             </button>
           </div>
+          <button onclick="copiarMensagemDocumentos()" style="width:100%;margin-top:8px;background:white;color:#1E40AF;border:1px solid #BFDBFE;border-radius:8px;padding:9px;font-size:12px;cursor:pointer;font-weight:600;display:flex;align-items:center;justify-content:center;gap:7px">
+            <i class="ti ti-copy" style="font-size:14px"></i> Copiar mensagem (evita perder os emojis)
+          </button>
           <div id="ok-whats" style="display:none;margin-top:8px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:6px;padding:9px 12px;font-size:12px;color:#166534;align-items:center;gap:8px">
             <i class="ti ti-circle-check" style="font-size:15px"></i>
             <span>✅ WhatsApp aberto! Confirme o envio da mensagem.</span>
@@ -2028,14 +2031,22 @@ const firebaseConfig = {
   messagingSenderId: "169902139265",
   appId: "1:169902139265:web:428a42f3051725eb58ea80"
 };
-firebase.initializeApp(firebaseConfig);
-const dbRH = firebase.database();
+let dbRH = null;
+try{
+  firebase.initializeApp(firebaseConfig);
+  dbRH = firebase.database();
+}catch(e){
+  // Firebase indisponível (sem internet, CDN bloqueado, testando arquivo local etc.)
+  // O sistema continua funcionando normalmente em modo local — só não sincroniza em nuvem.
+  console.warn('Firebase indisponível — funcionando em modo local, sem sincronização em nuvem.', e);
+}
 
 let candidatosOnline = {};
 let admList = []; // declarado aqui também (early) para garantir que existe quando o listener do Firebase disparar
 
 // ===== PERSISTÊNCIA DO ADMLIST (admissões manuais) no Firebase =====
 function saveAdmList(){
+  if(!dbRH) return;
   // Salva apenas as admissões criadas manualmente (não as vindas do Firebase/portal)
   const manuais = admList
     .filter(a => !a.origemFirebase)
@@ -2048,28 +2059,59 @@ function saveAdmList(){
   dbRH.ref('admissoes_manuais').set(manuais.length > 0 ? manuais : null);
 }
 
-// Carrega admissões manuais do Firebase ao iniciar
-function loadAdmList(callback){
-  dbRH.ref('admissoes_manuais').once('value').then(snap => {
-    const dados = snap.val();
-    if(dados && Array.isArray(dados)){
-      // Restaura os registros manuais (sem foto/contrato em base64)
-      dados.forEach(a => {
-        if(!admList.find(x => x.id === a.id)){
-          admList.push(a);
-        }
-      });
+// Funde os dados vindos do Firebase com o admList local, sem apagar foto/contrato
+// que só existem no navegador local (esses campos nunca são sincronizados, por serem grandes).
+function sincronizarAdmListManuais(dados){
+  dados = Array.isArray(dados) ? dados : [];
+  const idsRecebidos = new Set(dados.map(d => d.id));
+  // Remove localmente os manuais que foram excluídos em outro computador
+  admList = admList.filter(a => a.origemFirebase || idsRecebidos.has(a.id));
+  dados.forEach(d => {
+    const existente = admList.find(a => !a.origemFirebase && a.id === d.id);
+    if(existente){
+      const fotoLocal = existente.foto;
+      const contratoLocal = existente.contratoDados;
+      const contratoMimeLocal = existente.contratoMimeType;
+      const contratoNomeLocal = existente.contratoNomeArquivo;
+      Object.assign(existente, d);
+      if(!existente.foto && fotoLocal) existente.foto = fotoLocal;
+      if(!existente.contratoDados && contratoLocal){
+        existente.contratoDados = contratoLocal;
+        existente.contratoMimeType = contratoMimeLocal;
+        existente.contratoNomeArquivo = contratoNomeLocal;
+      }
+    } else {
+      admList.push(d);
     }
-    if(callback) callback();
   });
 }
 
+// Carrega e acompanha as admissões manuais em tempo real — assim, uma movimentação
+// feita em um computador aparece automaticamente no outro, sem precisar recarregar a página.
+function loadAdmList(callback){
+  if(!dbRH){ if(callback) callback(); return; }
+  let primeiraVez = true;
+  dbRH.ref('admissoes_manuais').on('value', snap => {
+    sincronizarAdmListManuais(snap.val());
+    if(primeiraVez){
+      primeiraVez = false;
+      if(callback) callback();
+    } else {
+      renderKanban();
+      updateMetrics();
+      renderTabelaFuncionarios();
+    }
+  }, () => { if(primeiraVez){ primeiraVez = false; if(callback) callback(); } });
+}
+
 // Escuta o banco de dados em tempo real — atualiza sozinho quando um candidato preenche
-dbRH.ref('candidatos').on('value', (snapshot) => {
-  candidatosOnline = snapshot.val() || {};
-  renderCandidatosOnline();
-  sincronizarCandidatosNoKanban();
-});
+if(dbRH){
+  dbRH.ref('candidatos').on('value', (snapshot) => {
+    candidatosOnline = snapshot.val() || {};
+    renderCandidatosOnline();
+    sincronizarCandidatosNoKanban();
+  });
+}
 
 // Carrega admissões manuais assim que o Firebase estiver pronto
 loadAdmList(() => {
@@ -2575,7 +2617,9 @@ function renderKanban(){
   kColunas.forEach(col => {
     const el = document.getElementById('col'+col.id);
     if(!el) return;
-    const cards = admList.filter(a => (a.coluna||0) === col.id);
+    // Coluna "Admitido" nunca retém cards: ao confirmar a admissão o colaborador
+    // sai do funil do Kanban e passa a ser acompanhado na página "Funcionários".
+    const cards = col.id === 4 ? [] : admList.filter(a => (a.coluna||0) === col.id);
     document.getElementById('cnt'+col.id).textContent = cards.length;
     if(cards.length === 0){
       el.innerHTML = '<div class="kempty"><i class="ti '+col.icone+'" style="font-size:24px;display:block;margin-bottom:8px;opacity:.3"></i>'+kEmptyMsg[col.id]+'</div>';
@@ -3937,13 +3981,15 @@ const PERFIS_DISC = {
 };
 
 // Ouve Firebase em tempo real para novos profiles DISC
-dbRH.ref('profiles_disc').on('value',(snap)=>{
-  const dados=snap.val()||{};
-  perfisData = Object.entries(dados)
-    .filter(([k,p])=>p.status==='concluido')
-    .map(([k,p])=>({...p, firebaseKey: k}));
-  if(document.getElementById('pg-profile')?.classList.contains('show')) renderPaginaProfile();
-});
+if(dbRH){
+  dbRH.ref('profiles_disc').on('value',(snap)=>{
+    const dados=snap.val()||{};
+    perfisData = Object.entries(dados)
+      .filter(([k,p])=>p.status==='concluido')
+      .map(([k,p])=>({...p, firebaseKey: k}));
+    if(document.getElementById('pg-profile')?.classList.contains('show')) renderPaginaProfile();
+  });
+}
 
 // ===== PROFILE DISC =====
 let _profTabAtual = 'lista';
@@ -4440,6 +4486,7 @@ function updateMetrics(){
 // ===== MODAL ENVIAR LINK =====
 let linkProto = 1;
 let linkEnviados = [];
+let lkCandidatoAdicionadoKanban = false; // evita duplicar o card se ela clicar em mais de um botão de envio
 
 function abrirModalLink(){
   document.getElementById('ov-link').classList.add('open');
@@ -4449,6 +4496,7 @@ function abrirModalLink(){
   document.getElementById('lk-cargo').value='';
   document.getElementById('lk-unidade').value='';
   document.getElementById('lk-erro').textContent='';
+  lkCandidatoAdicionadoKanban = false;
   ['ok-whats','ok-email','ok-sms'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.style.display='none';
@@ -4460,24 +4508,18 @@ function abrirModalLink(){
   gerarLink();
 }
 
-// Envia mensagem diretamente para o WhatsApp do CANDIDATO
-function enviarCanalCandidato(canal){
+// Monta o texto da mensagem de boas-vindas + lista de documentos (candidato)
+function montarMensagemDocumentosCandidato(){
   const nome    = document.getElementById('lk-nome').value.trim();
-  const whats   = document.getElementById('lk-whats').value.trim().replace(/\D/g,'');
   const unidade = document.getElementById('lk-unidade').value;
   const cargo   = document.getElementById('lk-cargo').value.trim();
-  if(!nome){  document.getElementById('lk-erro').textContent='\u26a0 Informe o nome do colaborador antes de enviar.'; return; }
-  if(!whats){ document.getElementById('lk-erro').textContent='\u26a0 Informe o WhatsApp do candidato para envio direto.'; return; }
-  document.getElementById('lk-erro').textContent='';
-
   const proto         = 'ADM-2025-' + String(linkProto).padStart(4,'0');
   const unidadeTexto  = unidade || '\u00d3ticas Carol';
   const cargoTexto    = cargo   || 'colaborador(a)';
   const rhWhats       = '(21) 99291-8894';
   const rhEmail       = 'adm.katz@oticascarol.com.br';
 
-  const msg =
-    '\u2728 *Parab\u00e9ns, ' + nome.split(' ')[0] + '!* \u2728\n\n' +
+  return '\u2728 *Parab\u00e9ns, ' + (nome.split(' ')[0]||nome) + '!* \u2728\n\n' +
     '\u00c9 com muita alegria que comunicamos que voc\u00ea foi *aprovado(a)* no nosso processo seletivo!\n\n' +
     'Seja muito bem-vindo(a) \u00e0 fam\u00edlia *\u00d3ticas Carol*! \ud83d\udc53\n\n' +
     '\ud83c\udfea *Unidade:* ' + unidadeTexto + '\n' +
@@ -4504,12 +4546,53 @@ function enviarCanalCandidato(canal){
     '\u26a0\ufe0f Fotos leg\u00edveis, sem cortes. JPG, PNG ou PDF.\n\n' +
     'Qualquer d\u00favida estamos \u00e0 disposi\u00e7\u00e3o! \ud83d\ude0a\n\n' +
     '*Departamento Pessoal*\n*\u00d3ticas Carol* \ud83d\udc53';
+}
+
+// Cria o card do candidato direto na coluna "Documentação" do Kanban
+// (chamado assim que o boas-vindas é efetivamente enviado/copiado)
+function adicionarCandidatoKanbanDocumentacao(){
+  if(lkCandidatoAdicionadoKanban) return; // já foi adicionado nesta sessão do modal
+  const nome    = document.getElementById('lk-nome').value.trim();
+  if(!nome) return;
+  const whats   = document.getElementById('lk-whats').value.trim();
+  const email   = document.getElementById('lk-email').value.trim();
+  const unidade = document.getElementById('lk-unidade').value;
+  const cargo   = document.getElementById('lk-cargo').value.trim();
+  const proto   = 'ADM-2025-' + String(linkProto).padStart(4,'0');
+
+  const initials = nome.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+  const colors = ['av-b','av-g','av-a','av-gr','av-p'];
+  const color = colors[admList.length % colors.length];
+  const hoje = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+
+  admList.push({
+    id: Date.now(), nome, initials, color, proto, foto: '',
+    coluna: 1, // Documentação — aguardando o candidato enviar os documentos
+    data: hoje, cargo, unidadeNome: unidade, whats, email,
+  });
+  saveAdmList();
+  renderKanban();
+  updateMetrics();
+  linkProto++;
+  lkCandidatoAdicionadoKanban = true;
+}
+
+// Envia mensagem diretamente para o WhatsApp do CANDIDATO
+function enviarCanalCandidato(canal){
+  const nome    = document.getElementById('lk-nome').value.trim();
+  const whats   = document.getElementById('lk-whats').value.trim().replace(/\D/g,'');
+  if(!nome){  document.getElementById('lk-erro').textContent='\u26a0 Informe o nome do colaborador antes de enviar.'; return; }
+  if(!whats){ document.getElementById('lk-erro').textContent='\u26a0 Informe o WhatsApp do candidato para envio direto.'; return; }
+  document.getElementById('lk-erro').textContent='';
+
+  const msg = montarMensagemDocumentosCandidato();
 
   // Formata número: adiciona 55 se não tiver
   let num = whats.replace(/\D/g,'');
   if(num.length === 11 || num.length === 10) num = '55' + num;
 
   window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(msg), '_blank');
+  adicionarCandidatoKanbanDocumentacao();
 
   const ok = document.getElementById('ok-whats');
   if(ok){
@@ -4517,6 +4600,31 @@ function enviarCanalCandidato(canal){
     ok.style.display='flex';
     setTimeout(()=>ok.style.display='none', 7000);
   }
+}
+
+// Copia a mensagem para a área de transferência — usar quando o envio direto pelo
+// WhatsApp (wa.me) estiver comendo os emojis; cole manualmente na conversa.
+function copiarMensagemDocumentos(){
+  const nome = document.getElementById('lk-nome').value.trim();
+  if(!nome){ document.getElementById('lk-erro').textContent='\u26a0 Informe o nome do colaborador antes de copiar a mensagem.'; return; }
+  document.getElementById('lk-erro').textContent='';
+
+  const msg = montarMensagemDocumentosCandidato();
+  const mostrarOk = () => {
+    const ok = document.getElementById('ok-whats');
+    if(ok){
+      ok.innerHTML = '<i class="ti ti-circle-check" style="font-size:15px"></i><span>\u2705 Mensagem copiada! Cole direto na conversa do WhatsApp.</span>';
+      ok.style.display='flex';
+      setTimeout(()=>ok.style.display='none', 7000);
+    }
+  };
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(msg).then(mostrarOk).catch(()=>{ prompt('Copie a mensagem abaixo:', msg); mostrarOk(); });
+  } else {
+    prompt('Copie a mensagem abaixo:', msg);
+    mostrarOk();
+  }
+  adicionarCandidatoKanbanDocumentacao();
 }
 
 function fecharModalLink(){
@@ -4666,6 +4774,7 @@ function enviarCanal(canal){
     const smsMsg = 'Parabéns ' + nome + '! Você foi aprovado(a) nas Óticas Carol (' + (unidade||'') + '). Envie seus documentos de admissão por WhatsApp ou e-mail. Protocolo: ' + proto + '. Dúvidas fale com o RH.';
     window.open('sms:+5521992918894?body=' + encodeURIComponent(smsMsg), '_blank');
   }
+  adicionarCandidatoKanbanDocumentacao();
 
   const el = document.getElementById('ok-'+canal);
   if(el){ el.style.display='flex'; setTimeout(()=>el.style.display='none', 7000); }
