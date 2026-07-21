@@ -2089,7 +2089,14 @@ function sincronizarAdmListManuais(dados){
 // Carrega e acompanha as admissões manuais em tempo real — assim, uma movimentação
 // feita em um computador aparece automaticamente no outro, sem precisar recarregar a página.
 function loadAdmList(callback){
-  if(!dbRH){ if(callback) callback(); return; }
+  if(!dbRH){
+    // Importante: adia para o próximo ciclo do event loop. Se chamarmos o callback
+    // AGORA (de forma síncrona), o restante do script ainda não terminou de rodar —
+    // variáveis declaradas mais abaixo (como as do Kanban) ainda não existem, e isso
+    // quebra a página inteira silenciosamente (inclusive o botão "Nova admissão").
+    setTimeout(() => { if(callback) callback(); }, 0);
+    return;
+  }
   let primeiraVez = true;
   dbRH.ref('admissoes_manuais').on('value', snap => {
     sincronizarAdmListManuais(snap.val());
