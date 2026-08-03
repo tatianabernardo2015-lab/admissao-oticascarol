@@ -101,6 +101,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
 /* MODAL */
 .overlay{position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,.5);z-index:100;display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
 .overlay.open{display:flex}
+/* Painel "Nova admissão" inline (não é um overlay fixo — evita a tela travar
+   silenciosamente caso o navegador tenha problema para calcular posicionamento fixo) */
+#overlay.open{position:relative;top:auto;right:auto;bottom:auto;left:auto;background:transparent;z-index:auto;padding:0 0 22px;justify-content:stretch;animation:painelDesce .18s ease}
+#overlay .modal{width:100%;max-width:900px;margin:0 auto}
+@keyframes painelDesce{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
 .modal{background:white;border-radius:var(--rxl);width:700px;margin:auto;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.2)}
 .modal-head{background:var(--blue);padding:20px 24px;display:flex;align-items:center;gap:14px}
 .modal-acc{width:4px;height:42px;background:var(--yellow);border-radius:2px;flex-shrink:0}
@@ -163,9 +168,16 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
 .doc-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r);border:1px solid var(--border);background:#F9FAFB}
 .doc-row i{font-size:18px;color:var(--blue)}
 .doc-name{font-size:12px;font-weight:500;flex:1}
-.doc-tag{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:500}
+.doc-tag{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:500;white-space:nowrap}
 .dt-pend{background:#EFF6FF;color:#1E40AF}
 .dt-wait{background:#FFFBEB;color:#92400E}
+.dt-ok{background:#F0FDF4;color:#166534}
+.doc-row{flex-wrap:wrap}
+.doc-file-name{font-size:11px;color:#6B7280;flex:1;min-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc-attach-btn{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:500;color:var(--blue);background:white;border:1px solid var(--border);border-radius:7px;padding:5px 10px;cursor:pointer;white-space:nowrap}
+.doc-attach-btn:hover{background:#EFF6FF}
+.doc-remove-btn{display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;border:none;background:#FEF2F2;color:#991B1B;cursor:pointer;font-size:12px}
+.doc-remove-btn:hover{background:#FEE2E2}
 .dt-done{background:#F0FDF4;color:#166534}
 
 /* CHECKLIST */
@@ -277,6 +289,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -297,7 +310,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
   <nav class="sidebar">
     <div class="sb-user">
       <small>Bem-vinda,</small>
-      <strong>Responsável RH</strong>
+      <strong id="sb-nome-usuario">Responsável RH</strong>
+      <button onclick="definirUsuarioAtual()" title="Trocar usuário" style="background:none;border:none;cursor:pointer;color:#9CA3AF;padding:0;margin-left:6px;vertical-align:middle"><i class="ti ti-pencil" style="font-size:12px"></i></button>
     </div>
     <div class="sb-sec">
       <div class="sb-lbl">Admissão</div>
@@ -310,6 +324,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
       <div class="sb-lbl">Gestão</div>
       <div class="sb-item" onclick="nav('folha',this)"><i class="ti ti-cash"></i>Folha de pagamento</div>
       <div class="sb-item" onclick="nav('ferias',this)"><i class="ti ti-beach"></i>Férias</div>
+      <div class="sb-item" onclick="nav('aniversariantes',this)"><i class="ti ti-cake"></i>Aniversariantes<span class="sb-badge" id="aniv-badge" style="background:#DB2777">0</span></div>
+      <div class="sb-item" onclick="nav('terminos',this)"><i class="ti ti-alert-triangle"></i>Términos de Contrato<span class="sb-badge" id="term-badge" style="background:#DC2626">0</span></div>
       <div class="sb-item" onclick="nav('ponto',this)"><i class="ti ti-clock"></i>Ponto eletrônico</div>
       <div class="sb-item" onclick="nav('relatorios',this)"><i class="ti ti-chart-bar"></i>Relatórios</div>
     </div>
@@ -431,15 +447,18 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
           <button class="modal-close" onclick="fecharFichaFunc()"><i class="ti ti-x"></i></button>
         </div>
         <div class="modal-tabs" id="func-tabs">
-          <div class="mtab active" data-ftab="0" onclick="goFuncTab(0,this)"><i class="ti ti-id" style="font-size:14px;margin-right:4px"></i>Resumo</div>
-          <div class="mtab" data-ftab="1" onclick="goFuncTab(1,this)"><i class="ti ti-calendar-x" style="font-size:14px;margin-right:4px"></i>Faltas/Ocorrências</div>
-          <div class="mtab" data-ftab="2" onclick="goFuncTab(2,this)"><i class="ti ti-shopping-cart" style="font-size:14px;margin-right:4px"></i>Compras/Descontos</div>
-          <div class="mtab" data-ftab="3" onclick="goFuncTab(3,this)"><i class="ti ti-shirt" style="font-size:14px;margin-right:4px"></i>Uniforme</div>
-          <div class="mtab" data-ftab="4" onclick="goFuncTab(4,this)"><i class="ti ti-notes" style="font-size:14px;margin-right:4px"></i>Observações</div>
+          <div class="mtab active" data-ftab="0" onclick="goFuncTab(0,this)"><i class="ti ti-file-text" style="font-size:14px;margin-right:4px"></i>Dados da admissão</div>
+          <div class="mtab" data-ftab="1" onclick="goFuncTab(1,this)"><i class="ti ti-id" style="font-size:14px;margin-right:4px"></i>Resumo</div>
+          <div class="mtab" data-ftab="2" onclick="goFuncTab(2,this)"><i class="ti ti-calendar-x" style="font-size:14px;margin-right:4px"></i>Faltas/Ocorrências</div>
+          <div class="mtab" data-ftab="3" onclick="goFuncTab(3,this)"><i class="ti ti-shopping-cart" style="font-size:14px;margin-right:4px"></i>Compras/Descontos</div>
+          <div class="mtab" data-ftab="4" onclick="goFuncTab(4,this)"><i class="ti ti-shirt" style="font-size:14px;margin-right:4px"></i>Uniforme</div>
+          <div class="mtab" data-ftab="5" onclick="goFuncTab(5,this)"><i class="ti ti-notes" style="font-size:14px;margin-right:4px"></i>Observações</div>
         </div>
         <div class="modal-body" id="func-body" style="max-height:58vh"></div>
         <div class="modal-foot">
           <button class="btn-ghost" onclick="fecharFichaFunc()">Fechar</button>
+          <button onclick="exportarFichaColaboradorPDF()" style="background:#F3F4F6;border:1px solid var(--border);color:#374151;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px;margin-left:auto"><i class="ti ti-file-download" style="font-size:14px"></i> Baixar ficha em PDF</button>
+          <button onclick="editarFuncionario()" style="background:#EFF6FF;border:1px solid #BFDBFE;color:var(--blue);padding:9px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><i class="ti ti-pencil" style="font-size:14px"></i> Editar</button>
         </div>
       </div>
     </div>
@@ -459,13 +478,46 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
           </div>
           <div class="field">
             <label>Unidade de registro <span class="req">*</span></label>
-            <select id="dataadm-unidade"></select>
+            <select id="dataadm-unidade" onchange="sincronizarLojaAtualPadrao()"></select>
             <div style="font-size:11px;color:#9CA3AF;margin-top:6px">Esta é a unidade vinculada à folha de pagamento e férias. Não muda mesmo se o colaborador for transferido depois — apenas a "loja atual" muda.</div>
+          </div>
+          <div class="field">
+            <label>Loja atual <span class="req">*</span></label>
+            <select id="dataadm-lojaatual"></select>
+            <div style="font-size:11px;color:#9CA3AF;margin-top:6px">Onde o colaborador vai trabalhar de fato. Por padrão é igual à unidade de registro, mas pode ser diferente.</div>
           </div>
         </div>
         <div class="modal-foot">
           <button class="btn-ghost" onclick="fecharModalDataAdm()">Cancelar</button>
           <button class="btn-blue" onclick="confirmarComData()"><i class="ti ti-check"></i> Confirmar admissão</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== MODAL IMPORTAÇÃO EM MASSA ===== -->
+    <div class="overlay" id="ov-importmassa">
+      <div class="modal" style="max-width:96vw;width:1400px">
+        <div class="modal-head">
+          <div><div class="modal-title">Importar colaboradores em massa</div><div class="modal-sub">Suba uma planilha (Excel ou CSV) para cadastrar vários colaboradores de uma vez</div></div>
+          <button class="modal-close" onclick="fecharImportacaoMassa()"><i class="ti ti-x"></i></button>
+        </div>
+        <div class="modal-body" id="importmassa-body">
+          <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:14px 16px;margin-bottom:16px;font-size:12px;color:#1E40AF;display:flex;align-items:flex-start;gap:10px">
+            <i class="ti ti-info-circle" style="font-size:16px;flex-shrink:0;margin-top:1px"></i>
+            <div>Baixe o modelo, preencha uma linha por colaborador e suba o arquivo de volta aqui. Pode deixar campos em branco sem problema. Se o nome da loja não bater com nenhuma cadastrada, <strong>ela é criada automaticamente</strong> — não precisa cadastrar a loja antes. Todos entram direto como <strong>funcionários ativos</strong>, sem passar pelo funil de admissão.</div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px">
+            <button class="btn-out" onclick="baixarModeloImportacao()"><i class="ti ti-download"></i>Baixar modelo (Excel)</button>
+            <label class="btn-blue" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+              <i class="ti ti-upload"></i>Escolher planilha preenchida
+              <input type="file" id="importmassa-arquivo" accept=".xlsx,.xls,.csv" style="display:none" onchange="processarArquivoImportacao(this)"/>
+            </label>
+          </div>
+          <div id="importmassa-preview"></div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn-ghost" onclick="fecharImportacaoMassa()">Cancelar</button>
+          <button class="btn-blue" id="importmassa-btn-confirmar" onclick="confirmarImportacaoMassa()" disabled><i class="ti ti-check"></i> Importar colaboradores</button>
         </div>
       </div>
     </div>
@@ -557,7 +609,10 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
     <div class="page" id="pg-funcionarios">
       <div class="ph">
         <div><div class="pg-title">Funcionários</div><div class="pg-sub">Cadastro ativo de colaboradores das Óticas Carol</div></div>
-        <button class="btn-blue" onclick="openModal()"><i class="ti ti-plus"></i>Novo funcionário</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn-out" onclick="abrirImportacaoMassa()"><i class="ti ti-file-spreadsheet"></i>Importar em massa</button>
+          <button class="btn-blue" onclick="abrirImportacaoFuncionario()"><i class="ti ti-plus"></i>Novo funcionário</button>
+        </div>
       </div>
       <div class="metrics" style="grid-template-columns:repeat(4,1fr);margin-bottom:18px">
         <div class="mcard"><div class="mcard-lbl">Ativos</div><div class="mcard-val" id="func-ativos" style="color:#16A34A">0</div></div>
@@ -571,6 +626,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
           <option value="">Todos os status</option>
           <option value="ativo">Ativos</option>
           <option value="desligado">Desligados</option>
+        </select>
+        <select id="func-filtro-loja" onchange="renderTabelaFuncionarios()" style="border:1px solid #E5E7EB;border-radius:8px;padding:0 12px;font-size:13px;background:white">
+          <option value="">Todas as lojas</option>
         </select>
         <button class="btn-out"><i class="ti ti-download"></i>Exportar</button>
       </div>
@@ -658,6 +716,52 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
       </div>
     </div>
 
+    <!-- ===== ANIVERSARIANTES ===== -->
+    <div class="page" id="pg-aniversariantes">
+      <div class="ph">
+        <div><div class="pg-title">Aniversariantes</div><div class="pg-sub">Colaboradores que fazem aniversário no mês selecionado</div></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="aniv-mes-filtro" onchange="renderPaginaAniversariantes()" style="border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;font-weight:500;color:#374151;background:white">
+            <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option>
+            <option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option>
+            <option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option>
+            <option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+          </select>
+          <button class="btn-out" onclick="exportarAniversariantesPDF()"><i class="ti ti-file-download"></i>Extrair em PDF</button>
+        </div>
+      </div>
+      <div class="metrics" style="grid-template-columns:repeat(2,1fr);margin-bottom:18px">
+        <div class="mcard"><div class="mcard-lbl">Aniversariantes no mês</div><div class="mcard-val" id="aniv-total" style="color:#DB2777">0</div></div>
+        <div class="mcard"><div class="mcard-lbl">Mensagens já enviadas</div><div class="mcard-val" id="aniv-enviadas" style="color:#16A34A">0</div></div>
+      </div>
+      <div id="aniv-lista" style="display:flex;flex-direction:column;gap:12px"></div>
+    </div>
+
+    <!-- ===== TÉRMINOS DE CONTRATO (experiência 45+45) ===== -->
+    <div class="page" id="pg-terminos">
+      <div class="ph">
+        <div><div class="pg-title">Términos de Contrato</div><div class="pg-sub">Contrato de experiência: 45 dias + prorrogação de 45 dias, a contar da data de admissão</div></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="term-filtro" onchange="renderPaginaTerminos()" style="border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;font-weight:500;color:#374151;background:white">
+            <option value="todos">Todos</option>
+            <option value="vencidos">Vencidos</option>
+            <option value="proximos">Próximos 15 dias</option>
+          </select>
+          <button class="btn-out" onclick="exportarTerminosPDF()"><i class="ti ti-file-download"></i>Extrair em PDF</button>
+        </div>
+      </div>
+      <div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px">
+        <div class="mcard"><div class="mcard-lbl">Vencidos</div><div class="mcard-val" id="term-vencidos" style="color:#DC2626">0</div></div>
+        <div class="mcard"><div class="mcard-lbl">Próximos 15 dias</div><div class="mcard-val" id="term-proximos" style="color:#92400E">0</div></div>
+        <div class="mcard"><div class="mcard-lbl">Colaboradores em experiência</div><div class="mcard-val" id="term-total" style="color:#1A4B8C">0</div></div>
+      </div>
+      <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:14px 18px;margin-bottom:18px;font-size:13px;color:#1E40AF;display:flex;align-items:flex-start;gap:10px">
+        <i class="ti ti-info-circle" style="font-size:17px;flex-shrink:0;margin-top:1px"></i>
+        <div><strong>1º término</strong> = data de admissão + 45 dias (decidir se prorroga). <strong>2º término</strong> = data de admissão + 90 dias (fim do período de experiência — efetivar ou encerrar).</div>
+      </div>
+      <div id="term-lista" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+
     <!-- ===== FÉRIAS ===== -->
     <div class="page" id="pg-ferias">
       <div class="ph">
@@ -695,6 +799,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
 
       <!-- Aba: Por loja -->
       <div id="fer-tab-loja" class="fer-tabcontent" style="display:none">
+        <div style="margin-bottom:14px">
+          <select id="fer-loja-filtro" onchange="renderFeriasPorLoja()" style="border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;font-weight:500;color:#374151;background:white;min-width:220px">
+            <option value="">Todas as lojas</option>
+          </select>
+        </div>
         <div id="fer-por-loja"></div>
       </div>
 
@@ -1083,6 +1192,32 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
         </div>
       </div>
     </div>
+
+    <!-- ===== MODAL: EDITAR PERÍODO AQUISITIVO ===== -->
+    <div class="overlay" id="ov-fer-periodo">
+      <div class="modal" style="max-width:420px">
+        <div class="modal-head">
+          <div><div class="modal-title">Editar período aquisitivo</div><div class="modal-sub" id="fer-periodo-nome">—</div></div>
+          <button class="modal-close" onclick="fecharModalPeriodoAquisitivo()"><i class="ti ti-x"></i></button>
+        </div>
+        <div class="modal-body">
+          <div class="field">
+            <label>Período aquisitivo termina em <span class="req">*</span></label>
+            <input type="date" id="fer-periodo-data"/>
+            <div style="font-size:11px;color:#6B7280;margin-top:8px">O prazo limite para gozo é recalculado automaticamente: 1 ano após essa data.</div>
+          </div>
+          <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:12px 14px;margin-top:8px;font-size:12px;color:#1E40AF">
+            <i class="ti ti-info-circle" style="margin-right:5px"></i>Novo prazo limite para gozo: <strong id="fer-periodo-preview">—</strong>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn-ghost" onclick="restaurarPeriodoAutomatico()" id="fer-periodo-restaurar" style="display:none">Restaurar cálculo automático</button>
+          <button class="btn-ghost" onclick="fecharModalPeriodoAquisitivo()">Cancelar</button>
+          <button class="btn-blue" onclick="salvarPeriodoAquisitivo()"><i class="ti ti-check"></i> Salvar</button>
+        </div>
+      </div>
+    </div>
+
 
 
     <!-- ===== PROFILE COMPORTAMENTAL ===== -->
@@ -1849,15 +1984,15 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
           <div class="fsec-title"><i class="ti ti-user" style="color:var(--blue)"></i>Identificação</div>
           <div class="fgrid">
             <div class="field fcol2"><label>Nome completo <span class="req">*</span></label><input type="text" id="f-nome" placeholder="Nome completo do colaborador"/></div>
-            <div class="field"><label>CPF <span class="req">*</span></label><input type="text" placeholder="000.000.000-00"/></div>
-            <div class="field"><label>RG <span class="req">*</span></label><input type="text" placeholder="00.000.000-0"/></div>
-            <div class="field"><label>Data de nascimento</label><input type="date"/></div>
-            <div class="field"><label>Sexo</label><select><option value="">-- Selecione --</option><option>Masculino</option><option>Feminino</option><option>Outro</option></select></div>
-            <div class="field"><label>Estado civil</label><select><option value="">-- Selecione --</option><option>Solteiro(a)</option><option>Casado(a)</option><option>Divorciado(a)</option><option>Viúvo(a)</option></select></div>
-            <div class="field"><label>Grau de instrução</label><select><option value="">-- Selecione --</option><option>Ensino Fundamental</option><option>Ensino Médio</option><option>Superior Incompleto</option><option>Superior Completo</option></select></div>
+            <div class="field"><label>CPF <span class="req">*</span></label><input type="text" id="f-cpf" placeholder="000.000.000-00"/></div>
+            <div class="field"><label>RG <span class="req">*</span></label><input type="text" id="f-rg" placeholder="00.000.000-0"/></div>
+            <div class="field"><label>Data de nascimento</label><input type="date" id="f-nasc"/></div>
+            <div class="field"><label>Sexo</label><select id="f-sexo"><option value="">-- Selecione --</option><option>Masculino</option><option>Feminino</option><option>Outro</option></select></div>
+            <div class="field"><label>Estado civil</label><select id="f-civil"><option value="">-- Selecione --</option><option>Solteiro(a)</option><option>Casado(a)</option><option>Divorciado(a)</option><option>Viúvo(a)</option></select></div>
+            <div class="field"><label>Grau de instrução</label><select id="f-instrucao"><option value="">-- Selecione --</option><option>Ensino Fundamental</option><option>Ensino Médio</option><option>Superior Incompleto</option><option>Superior Completo</option></select></div>
             <div class="field"><label>Celular <span class="req">*</span></label><input type="text" id="f-celular" placeholder="(00) 00000-0000"/></div>
-            <div class="field"><label>E-mail</label><input type="email" placeholder="colaborador@email.com"/></div>
-            <div class="field fcol2"><label>Endereço completo</label><input type="text" placeholder="Rua, número, complemento, bairro, cidade – UF"/></div>
+            <div class="field"><label>E-mail</label><input type="email" id="f-email" placeholder="colaborador@email.com"/></div>
+            <div class="field fcol2"><label>Endereço completo</label><input type="text" id="f-endereco" placeholder="Rua, número, complemento, bairro, cidade – UF"/></div>
           </div>
         </div>
       </div>
@@ -1867,18 +2002,18 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
         <div class="fsec">
           <div class="fsec-title"><i class="ti ti-building-store" style="color:var(--blue)"></i>Vínculo e cargo</div>
           <div class="fgrid">
-            <div class="field"><label>Unidade <span class="req">*</span></label><select id="f-unidade"><option value="">-- Selecione --</option><option>Gkanx Ótica Ltda</option><option>Abr Ótica Ltda - Epp</option><option>Foris Ótica Ltda</option><option>Binho Ótica Ltda</option><option>Bena Ótica Ltda</option><option>Ankat Ótica Eireli - Epp</option><option>Kale Ótica Ltda</option><option>Leib Ótica Eireli - Epp</option></select></div>
-            <div class="field"><label>Departamento</label><select><option value="">-- Selecione --</option><option>Vendas</option><option>Atendimento</option><option>Técnico (Ótica)</option><option>Gestão</option><option>Administrativo</option></select></div>
+            <div class="field"><label>Unidade <span class="req">*</span></label><select id="f-unidade" onchange="sincronizarLojaAtualWizard()"><option value="">-- Selecione --</option><option>Gkanx Ótica Ltda</option><option>Abr Ótica Ltda - Epp</option><option>Foris Ótica Ltda</option><option>Binho Ótica Ltda</option><option>Bena Ótica Ltda</option><option>Ankat Ótica Eireli - Epp</option><option>Kale Ótica Ltda</option><option>Leib Ótica Eireli - Epp</option></select></div>
+            <div class="field"><label>Loja atual</label><select id="f-lojaatual"><option value="">-- Selecione --</option></select></div>
             <div class="field fcol2"><label>Cargo <span class="req">*</span></label><input type="text" id="f-cargo" placeholder="Ex: Vendedor(a), Ótico Técnico, Atendente..."/></div>
-            <div class="field"><label>Data de admissão <span class="req">*</span></label><input type="date"/></div>
-            <div class="field"><label>Salário base (R$) <span class="req">*</span></label><input type="text" placeholder="0,00"/></div>
-            <div class="field"><label>Jornada de trabalho</label><select><option>44h semanais</option><option>40h semanais</option><option>36h semanais</option><option>30h semanais</option></select></div>
-            <div class="field"><label>Horário</label><input type="text" placeholder="Ex: 09h00 às 18h00"/></div>
+            <div class="field"><label>Data de admissão <span class="req">*</span></label><input type="date" id="f-dataadmissao"/></div>
+            <div class="field"><label>Salário base (R$) <span class="req">*</span></label><input type="text" id="f-salario" placeholder="0,00"/></div>
+            <div class="field"><label>Jornada de trabalho</label><select id="f-jornada"><option>44h semanais</option><option>40h semanais</option><option>36h semanais</option><option>30h semanais</option></select></div>
+            <div class="field"><label>Horário</label><input type="text" id="f-horario" placeholder="Ex: 09h00 às 18h00"/></div>
           </div>
         </div>
         <div class="fsec">
           <div class="fsec-title"><i class="ti ti-file-text" style="color:var(--blue)"></i>Tipo de contrato</div>
-          <div class="rgroup">
+          <div class="rgroup" id="rg-contrato">
             <div class="ropt sel" onclick="selR(this)"><div class="rdot"></div>CLT – Consolidação das Leis</div>
             <div class="ropt" onclick="selR(this)"><div class="rdot"></div>PJ – Pessoa Jurídica</div>
             <div class="ropt" onclick="selR(this)"><div class="rdot"></div>Estágio</div>
@@ -1888,9 +2023,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
         <div class="fsec">
           <div class="fsec-title"><i class="ti ti-credit-card" style="color:var(--blue)"></i>Dados bancários</div>
           <div class="fgrid-3">
-            <div class="field"><label>Banco</label><input type="text" placeholder="Ex: Bradesco, Itaú, Nubank..."/></div>
-            <div class="field"><label>Agência</label><input type="text" placeholder="0000-0"/></div>
-            <div class="field"><label>Conta corrente</label><input type="text" placeholder="00000000-0"/></div>
+            <div class="field"><label>Banco</label><input type="text" id="f-banco" placeholder="Ex: Bradesco, Itaú, Nubank..."/></div>
+            <div class="field"><label>Agência</label><input type="text" id="f-agencia" placeholder="0000-0"/></div>
+            <div class="field"><label>Conta corrente</label><input type="text" id="f-conta" placeholder="00000000-0"/></div>
           </div>
           <div style="margin-top:12px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:var(--rl);padding:14px">
             <div style="font-size:12px;font-weight:600;color:#166534;margin-bottom:10px;display:flex;align-items:center;gap:6px">
@@ -1921,14 +2056,15 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
       <div class="tab-panel" id="tp2">
         <div class="fsec">
           <div class="fsec-title"><i class="ti ti-files" style="color:var(--blue)"></i>Status dos documentos</div>
-          <div class="doc-list">
-            <div class="doc-row"><i class="ti ti-id"></i><div class="doc-name">RG / CNH (frente e verso)</div><span class="doc-tag dt-pend">Pendente</span></div>
-            <div class="doc-row"><i class="ti ti-file-certificate"></i><div class="doc-name">CPF</div><span class="doc-tag dt-pend">Pendente</span></div>
-            <div class="doc-row"><i class="ti ti-notebook"></i><div class="doc-name">Carteira de trabalho (CTPS)</div><span class="doc-tag dt-pend">Pendente</span></div>
-            <div class="doc-row"><i class="ti ti-home"></i><div class="doc-name">Comprovante de endereço (últimos 90 dias)</div><span class="doc-tag dt-wait">Aguardando</span></div>
-            <div class="doc-row"><i class="ti ti-heart-rate-monitor"></i><div class="doc-name">ASO – Atestado de saúde ocupacional</div><span class="doc-tag dt-wait">Aguardando</span></div>
-            <div class="doc-row"><i class="ti ti-credit-card"></i><div class="doc-name">Dados bancários</div><span class="doc-tag dt-wait">Aguardando</span></div>
-            <div class="doc-row"><i class="ti ti-file-check"></i><div class="doc-name">PIS / NIT</div><span class="doc-tag dt-pend">Pendente</span></div>
+          <div class="doc-list" id="doc-list">
+            <div class="doc-row" data-doc="rg"><i class="ti ti-id"></i><div class="doc-name">RG / CNH (frente e verso)</div><div class="doc-file-name" id="docfn-rg"></div><input type="file" id="docfile-rg" accept="image/*,.pdf" style="display:none" onchange="anexarDoc('rg',this)"><button type="button" class="doc-attach-btn" id="docbtn-rg" onclick="document.getElementById('docfile-rg').click()"><i class="ti ti-paperclip"></i>Anexar</button><button type="button" class="doc-remove-btn" id="docrm-rg" style="display:none" onclick="removerDoc('rg')"><i class="ti ti-x"></i></button><span class="doc-tag dt-pend" id="doctag-rg">Pendente</span></div>
+            <div class="doc-row" data-doc="cpf"><i class="ti ti-file-certificate"></i><div class="doc-name">CPF</div><div class="doc-file-name" id="docfn-cpf"></div><input type="file" id="docfile-cpf" accept="image/*,.pdf" style="display:none" onchange="anexarDoc('cpf',this)"><button type="button" class="doc-attach-btn" id="docbtn-cpf" onclick="document.getElementById('docfile-cpf').click()"><i class="ti ti-paperclip"></i>Anexar</button><button type="button" class="doc-remove-btn" id="docrm-cpf" style="display:none" onclick="removerDoc('cpf')"><i class="ti ti-x"></i></button><span class="doc-tag dt-pend" id="doctag-cpf">Pendente</span></div>
+            <div class="doc-row" data-doc="ctps"><i class="ti ti-notebook"></i><div class="doc-name">Carteira de trabalho (CTPS)</div><div class="doc-file-name" id="docfn-ctps"></div><input type="file" id="docfile-ctps" accept="image/*,.pdf" style="display:none" onchange="anexarDoc('ctps',this)"><button type="button" class="doc-attach-btn" id="docbtn-ctps" onclick="document.getElementById('docfile-ctps').click()"><i class="ti ti-paperclip"></i>Anexar</button><button type="button" class="doc-remove-btn" id="docrm-ctps" style="display:none" onclick="removerDoc('ctps')"><i class="ti ti-x"></i></button><span class="doc-tag dt-pend" id="doctag-ctps">Pendente</span></div>
+            <div class="doc-row" data-doc="endereco"><i class="ti ti-home"></i><div class="doc-name">Comprovante de endereço (últimos 90 dias)</div><div class="doc-file-name" id="docfn-endereco"></div><input type="file" id="docfile-endereco" accept="image/*,.pdf" style="display:none" onchange="anexarDoc('endereco',this)"><button type="button" class="doc-attach-btn" id="docbtn-endereco" onclick="document.getElementById('docfile-endereco').click()"><i class="ti ti-paperclip"></i>Anexar</button><button type="button" class="doc-remove-btn" id="docrm-endereco" style="display:none" onclick="removerDoc('endereco')"><i class="ti ti-x"></i></button><span class="doc-tag dt-wait" id="doctag-endereco">Aguardando</span></div>
+            <div class="doc-row" data-doc="aso"><i class="ti ti-heart-rate-monitor"></i><div class="doc-name">ASO – Atestado de saúde ocupacional</div><div class="doc-file-name" id="docfn-aso"></div><input type="file" id="docfile-aso" accept="image/*,.pdf" style="display:none" onchange="anexarDoc('aso',this)"><button type="button" class="doc-attach-btn" id="docbtn-aso" onclick="document.getElementById('docfile-aso').click()"><i class="ti ti-paperclip"></i>Anexar</button><button type="button" class="doc-remove-btn" id="docrm-aso" style="display:none" onclick="removerDoc('aso')"><i class="ti ti-x"></i></button><span class="doc-tag dt-wait" id="doctag-aso">Aguardando</span></div>
+            <div class="doc-row" data-doc="bancarios"><i class="ti ti-credit-card"></i><div class="doc-name">Dados bancários</div><div class="doc-file-name" id="docfn-bancarios"></div><input type="file" id="docfile-bancarios" accept="image/*,.pdf" style="display:none" onchange="anexarDoc('bancarios',this)"><button type="button" class="doc-attach-btn" id="docbtn-bancarios" onclick="document.getElementById('docfile-bancarios').click()"><i class="ti ti-paperclip"></i>Anexar</button><button type="button" class="doc-remove-btn" id="docrm-bancarios" style="display:none" onclick="removerDoc('bancarios')"><i class="ti ti-x"></i></button><span class="doc-tag dt-wait" id="doctag-bancarios">Aguardando</span></div>
+            <div class="doc-row" data-doc="pisnit"><i class="ti ti-file-check"></i><div class="doc-name">PIS / NIT</div><div class="doc-file-name" id="docfn-pisnit"></div><input type="file" id="docfile-pisnit" accept="image/*,.pdf" style="display:none" onchange="anexarDoc('pisnit',this)"><button type="button" class="doc-attach-btn" id="docbtn-pisnit" onclick="document.getElementById('docfile-pisnit').click()"><i class="ti ti-paperclip"></i>Anexar</button><button type="button" class="doc-remove-btn" id="docrm-pisnit" style="display:none" onclick="removerDoc('pisnit')"><i class="ti ti-x"></i></button><span class="doc-tag dt-pend" id="doctag-pisnit">Pendente</span></div>
+            <div class="doc-row" data-doc="fichareg" style="background:#FFFBEB;border-color:#FDE68A"><i class="ti ti-file-description" style="color:#92400E"></i><div class="doc-name">Ficha de registro (documento físico já existente)</div><div class="doc-file-name" id="docfn-fichareg"></div><input type="file" id="docfile-fichareg" accept="image/*,.pdf" style="display:none" onchange="anexarDoc('fichareg',this)"><button type="button" class="doc-attach-btn" id="docbtn-fichareg" onclick="document.getElementById('docfile-fichareg').click()"><i class="ti ti-paperclip"></i>Anexar</button><button type="button" class="doc-remove-btn" id="docrm-fichareg" style="display:none" onclick="removerDoc('fichareg')"><i class="ti ti-x"></i></button><span class="doc-tag dt-wait" id="doctag-fichareg">Opcional</span></div>
           </div>
         </div>
         <div class="link-box">
@@ -1938,6 +2074,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
             <i class="ti ti-brand-whatsapp" style="font-size:18px"></i> Enviar via WhatsApp do candidato
           </button>
           <div class="link-ok" id="lok1" style="margin-top:10px"><i class="ti ti-circle-check" style="font-size:16px"></i><span id="lok1t">Enviado!</span></div>
+          <a id="waFallback1" href="#" target="_blank" rel="noopener" style="display:none;margin-top:8px;font-size:12px;color:var(--blue);text-align:center;font-weight:600">Não abriu automaticamente? Clique aqui para abrir o WhatsApp</a>
         </div>
       </div>
 
@@ -1969,6 +2106,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
             <i class="ti ti-brand-whatsapp" style="font-size:18px"></i> Enviar via WhatsApp do candidato
           </button>
           <div class="link-ok" id="lok2" style="margin-top:10px"><i class="ti ti-circle-check" style="font-size:16px"></i><span id="lok2t">Enviado!</span></div>
+          <a id="waFallback2" href="#" target="_blank" rel="noopener" style="display:none;margin-top:8px;font-size:12px;color:var(--blue);text-align:center;font-weight:600">Não abriu automaticamente? Clique aqui para abrir o WhatsApp</a>
         </div>
         <div class="contab-box">
           <div class="contab-title"><i class="ti ti-send" style="font-size:16px"></i>Enviar documentação à contabilidade</div>
@@ -1996,6 +2134,24 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
         </div>
       </div>
 
+      <!-- STEP SUCESSO (aparece ao concluir; o restante das etapas fica preservado por baixo,
+           pronto para o próximo uso do modal, seja Nova admissão ou Editar) -->
+      <div class="tab-panel" id="tpSucesso">
+        <div style="text-align:center;padding:32px 20px">
+          <div style="width:68px;height:68px;background:#EFF6FF;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+            <i class="ti ti-circle-check" style="font-size:38px;color:var(--blue)"></i>
+          </div>
+          <div style="font-size:19px;font-weight:600;color:#111827;margin-bottom:8px">Admissão concluída!</div>
+          <div style="font-size:13px;color:#6B7280;margin-bottom:22px"><span id="sucNome"></span> foi cadastrado(a) com sucesso. Protocolo: <strong id="sucProto"></strong></div>
+          <div style="display:flex;flex-direction:column;gap:8px;text-align:left;max-width:400px;margin:0 auto">
+            <div style="background:#EFF6FF;padding:11px 14px;border-radius:8px;font-size:13px;color:#1E40AF;display:flex;align-items:center;gap:9px"><i class="ti ti-photo" style="flex-shrink:0"></i>Foto salva no cadastro</div>
+            <div style="background:#EFF6FF;padding:11px 14px;border-radius:8px;font-size:13px;color:#1E40AF;display:flex;align-items:center;gap:9px"><i class="ti ti-link" style="flex-shrink:0"></i>Link de documentos enviado ao colaborador</div>
+            <div style="background:#FFFBEB;padding:11px 14px;border-radius:8px;font-size:13px;color:#92400E;border:1px solid #FDE68A;display:flex;align-items:center;gap:9px"><i class="ti ti-send" style="flex-shrink:0"></i>Documentação enviada à contabilidade</div>
+            <div style="background:#F0FDF4;padding:11px 14px;border-radius:8px;font-size:13px;color:#166534;display:flex;align-items:center;gap:9px"><i class="ti ti-mail" style="flex-shrink:0"></i>E-mail de boas-vindas enviado</div>
+          </div>
+        </div>
+      </div>
+
     </div>
     <div class="modal-foot">
       <button class="btn-out" id="mbk" onclick="prevS()" style="display:none"><i class="ti ti-arrow-left"></i>Voltar</button>
@@ -2008,6 +2164,295 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
 
 <script>
 // NAV
+// ===== TÉRMINOS DE CONTRATO (experiência 45 + 45) =====
+function somarDias(dataStr, dias){
+  const d = new Date(dataStr+'T00:00');
+  d.setDate(d.getDate()+dias);
+  return d.toISOString().split('T')[0];
+}
+function calcularDiasEntre(dataAlvo){
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const alvo = new Date(dataAlvo+'T00:00');
+  return Math.round((alvo - hoje) / 86400000);
+}
+function statusTermino(dias, tipo){
+  if(dias < 0){
+    if(tipo === '90') return {texto:'🎉 Efetivado(a)!', cor:'#16A34A', bg:'#F0FDF4'};
+    if(tipo === '45') return {texto:'🎉 Passou a 1ª etapa!', cor:'#16A34A', bg:'#F0FDF4'};
+    return {texto:'Vencido há '+Math.abs(dias)+' dia(s)', cor:'#DC2626', bg:'#FEF2F2'};
+  }
+  if(dias === 0) return {texto:'Vence hoje', cor:'#DC2626', bg:'#FEF2F2'};
+  if(dias <= 10) return {texto:'Faltam '+dias+' dia(s)', cor:'#DC2626', bg:'#FEF2F2'};
+  if(dias <= 15) return {texto:'Faltam '+dias+' dia(s)', cor:'#92400E', bg:'#FFFBEB'};
+  return {texto:'Faltam '+dias+' dia(s)', cor:'#16A34A', bg:'#F0FDF4'};
+}
+function formatarDataBR(dataStr){
+  if(!dataStr) return '—';
+  const p = dataStr.split('-');
+  return p[2]+'/'+p[1]+'/'+p[0];
+}
+
+function colaboradoresComTermino(){
+  return admList
+    .filter(a => a.coluna===4 && a.statusEmprego==='ativo' && a.dataAdmissaoOficial)
+    .map(a => {
+      const d45 = somarDias(a.dataAdmissaoOficial, 45);
+      const d90 = somarDias(a.dataAdmissaoOficial, 90);
+      const dias45 = calcularDiasEntre(d45);
+      const dias90 = calcularDiasEntre(d90);
+      return {a, d45, d90, dias45, dias90, st45: statusTermino(dias45,'45'), st90: statusTermino(dias90,'90')};
+    });
+}
+
+function renderPaginaTerminos(){
+  const filtro = document.getElementById('term-filtro')?.value || 'todos';
+  const lista = document.getElementById('term-lista');
+
+  const colaboradores = colaboradoresComTermino();
+  const vencidos = colaboradores.filter(c => (c.dias45>=0&&c.dias45<=10) || (c.dias90>=0&&c.dias90<=10));
+  const proximos = colaboradores.filter(c => c.dias90>=0 && ((c.dias45>=0 && c.dias45<=15) || (c.dias90>=0 && c.dias90<=15)));
+
+  document.getElementById('term-vencidos').textContent = vencidos.length;
+  document.getElementById('term-proximos').textContent = proximos.length;
+  document.getElementById('term-total').textContent = colaboradores.length;
+
+  let filtrados = colaboradores;
+  if(filtro === 'vencidos') filtrados = vencidos;
+  else if(filtro === 'proximos') filtrados = proximos;
+  filtrados = filtrados.slice().sort((x,y) => Math.min(x.dias45,x.dias90) - Math.min(y.dias45,y.dias90));
+
+  if(filtrados.length === 0){
+    lista.innerHTML = '<div style="text-align:center;padding:50px;color:#9CA3AF"><i class="ti ti-calendar-check" style="font-size:36px;display:block;margin-bottom:10px;opacity:.4"></i><div style="font-size:14px;font-weight:500">Nenhum colaborador nessa condição</div></div>';
+    return;
+  }
+
+  lista.innerHTML = filtrados.map(({a,d45,d90,st45,st90}) => {
+    const av = a.foto
+      ? '<div class="kav" style="width:44px;height:44px"><img src="'+a.foto+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/></div>'
+      : '<div class="kav '+(a.color||'av-b')+'" style="width:44px;height:44px;font-size:15px">'+a.initials+'</div>';
+    return '<div style="background:white;border:1px solid #E5E7EB;border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">'
+      + av
+      + '<div style="flex:1;min-width:160px"><div style="font-size:14px;font-weight:600;color:#111827">'+a.nome+'</div><div style="font-size:12px;color:#6B7280">'+(a.cargo||'—')+' · '+(a.unidade||'—')+' · Admitido em '+formatarDataBR(a.dataAdmissaoOficial)+'</div></div>'
+      + '<div style="background:'+st45.bg+';border-radius:8px;padding:8px 12px;min-width:160px">'
+        + '<div style="font-size:10px;color:#6B7280;margin-bottom:2px">1º término (45 dias) — '+formatarDataBR(d45)+'</div>'
+        + '<div style="font-size:12px;font-weight:600;color:'+st45.cor+'">'+st45.texto+'</div>'
+      + '</div>'
+      + '<div style="background:'+st90.bg+';border-radius:8px;padding:8px 12px;min-width:160px">'
+        + '<div style="font-size:10px;color:#6B7280;margin-bottom:2px">2º término (90 dias) — '+formatarDataBR(d90)+'</div>'
+        + '<div style="font-size:12px;font-weight:600;color:'+st90.cor+'">'+st90.texto+'</div>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function exportarTerminosPDF(){
+  const filtro = document.getElementById('term-filtro')?.value || 'todos';
+  const colaboradores = colaboradoresComTermino();
+  let filtrados = colaboradores;
+  if(filtro === 'vencidos') filtrados = colaboradores.filter(c => (c.dias45>=0&&c.dias45<=10) || (c.dias90>=0&&c.dias90<=10));
+  else if(filtro === 'proximos') filtrados = colaboradores.filter(c => c.dias90>=0 && ((c.dias45>=0 && c.dias45<=15) || (c.dias90>=0 && c.dias90<=15)));
+  filtrados = filtrados.slice().sort((x,y) => Math.min(x.dias45,x.dias90) - Math.min(y.dias45,y.dias90));
+
+  const rotuloFiltro = {todos:'Todos', vencidos:'Vencidos', proximos:'Próximos 15 dias'}[filtro];
+
+  const linhas = filtrados.length === 0
+    ? '<tr><td colspan="6" style="text-align:center;padding:24px;color:#9CA3AF">Nenhum colaborador nessa condição</td></tr>'
+    : filtrados.map(({a,d45,d90,st45,st90})=>{
+        return '<tr>'
+          + '<td>'+a.nome+'</td>'
+          + '<td>'+(a.cargo||'—')+'</td>'
+          + '<td>'+(a.unidade||'—')+'</td>'
+          + '<td>'+formatarDataBR(a.dataAdmissaoOficial)+'</td>'
+          + '<td>'+formatarDataBR(d45)+'<br><span style="color:'+st45.cor+';font-size:11px">'+st45.texto+'</span></td>'
+          + '<td>'+formatarDataBR(d90)+'<br><span style="color:'+st90.cor+';font-size:11px">'+st90.texto+'</span></td>'
+          + '</tr>';
+      }).join('');
+
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>Términos de Contrato</title>
+  <style>
+    body{font-family:'Segoe UI',sans-serif;background:white;color:#111827;margin:0;padding:32px}
+    .header{background:#DC2626;color:white;padding:24px 28px;border-radius:12px;margin-bottom:24px}
+    .header h1{font-size:22px;margin:0 0 4px}
+    .header p{font-size:13px;opacity:.9;margin:0}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{text-align:left;padding:10px 12px;background:#FEF2F2;color:#991B1B;font-weight:600;border-bottom:1px solid #FECACA}
+    td{padding:10px 12px;border-bottom:1px solid #F3F4F6;vertical-align:top}
+    .footer{margin-top:32px;padding-top:16px;border-top:1px solid #E5E7EB;font-size:11px;color:#9CA3AF;text-align:center}
+    @media print{body{padding:16px}}
+  </style></head><body>
+  <div class="header">
+    <h1>⚠️ Términos de Contrato — ${rotuloFiltro}</h1>
+    <p>Óticas Carol · Departamento Pessoal · Contrato de experiência 45+45 dias · ${filtrados.length} colaborador(es)</p>
+  </div>
+  <table>
+    <thead><tr><th>Nome</th><th>Cargo</th><th>Unidade</th><th>Admissão</th><th>1º término (45 dias)</th><th>2º término (90 dias)</th></tr></thead>
+    <tbody>${linhas}</tbody>
+  </table>
+  <div class="footer">Gerado pelo Sistema RH · Óticas Carol · ${new Date().toLocaleDateString('pt-BR')}</div>
+  <script>window.onload=()=>{window.print();}<\/script>
+  </body></html>`;
+  const blob = new Blob([html],{type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  window.open(url,'_blank');
+}
+
+// ===== ANIVERSARIANTES DO MÊS =====
+function primeiroNomeAniv(nomeCompleto){
+  return (nomeCompleto||'').trim().split(' ')[0] || 'colaborador(a)';
+}
+function sugerirMensagemAniversario(nome){
+  return '🎉 Feliz aniversário, '+primeiroNomeAniv(nome)+'!\n\n'
+    + 'Hoje é um dia especial e a equipe Óticas Carol quer celebrar com você. Obrigado por dedicar seu talento e sua energia ao nosso time — cada dia do seu trabalho faz diferença para nós.\n\n'
+    + 'Que esse novo ano de vida venha repleto de saúde, momentos felizes ao lado de quem você ama e muitas conquistas, dentro e fora daqui.\n\n'
+    + 'Um abraço carinhoso de toda a equipe Óticas Carol! 💙🎂';
+}
+
+function renderPaginaAniversariantes(){
+  const hoje = new Date();
+  const anoAtual = hoje.getFullYear();
+  const selMes = document.getElementById('aniv-mes-filtro');
+  // Na primeira vez que a página abre, pré-seleciona o mês atual
+  if(selMes && selMes.dataset.iniciado !== '1'){
+    selMes.value = String(hoje.getMonth());
+    selMes.dataset.iniciado = '1';
+  }
+  const mesAtual = selMes ? Number(selMes.value) : hoje.getMonth();
+  const lista = document.getElementById('aniv-lista');
+
+  const aniversariantes = admList
+    .filter(a => a.coluna===4 && a.statusEmprego==='ativo' && a.nascimento)
+    .map(a => {
+      const partes = a.nascimento.split('-').map(Number);
+      return {a, mes: partes[1]-1, dia: partes[2]};
+    })
+    .filter(x => x.mes === mesAtual)
+    .sort((x,y)=>x.dia-y.dia);
+
+  document.getElementById('aniv-total').textContent = aniversariantes.length;
+  document.getElementById('aniv-enviadas').textContent = aniversariantes.filter(x => x.a.aniversarioEnviadoAno === anoAtual).length;
+
+  if(aniversariantes.length === 0){
+    lista.innerHTML = '<div style="text-align:center;padding:50px;color:#9CA3AF"><i class="ti ti-cake" style="font-size:36px;display:block;margin-bottom:10px;opacity:.4"></i><div style="font-size:14px;font-weight:500">Nenhum aniversariante este mês</div></div>';
+    return;
+  }
+
+  lista.innerHTML = aniversariantes.map(({a,dia}) => {
+    const av = a.foto
+      ? '<div class="kav" style="width:48px;height:48px"><img src="'+a.foto+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/></div>'
+      : '<div class="kav '+(a.color||'av-b')+'" style="width:48px;height:48px;font-size:16px">'+a.initials+'</div>';
+    const jaEnviado = a.aniversarioEnviadoAno === anoAtual;
+    const msgSugerida = sugerirMensagemAniversario(a.nome);
+    return '<div style="background:white;border:1px solid #E5E7EB;border-radius:12px;padding:16px 18px">'
+      + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">'
+      + av
+      + '<div style="flex:1"><div style="font-size:14px;font-weight:600;color:#111827">'+a.nome+'</div><div style="font-size:12px;color:#6B7280">'+(a.cargo||'—')+' · Dia '+String(dia).padStart(2,'0')+'/'+String(mesAtual+1).padStart(2,'0')+'</div></div>'
+      + (jaEnviado ? '<span class="pill pill-ok" style="font-size:11px;white-space:nowrap"><i class="ti ti-check" style="font-size:11px;margin-right:3px"></i>Mensagem enviada</span>' : '')
+      + '</div>'
+      + '<textarea id="aniv-msg-'+a.id+'" style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:10px 12px;font-size:13px;min-height:90px;resize:vertical;font-family:inherit;color:#374151">'+msgSugerida+'</textarea>'
+      + '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">'
+      + '<button onclick="copiarMensagemAniv(\''+a.id+'\',this)" style="background:#F3F4F6;border:none;border-radius:7px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px;color:#374151"><i class="ti ti-copy" style="font-size:14px"></i>Copiar mensagem</button>'
+      + (a.celular ? '<button onclick="enviarWhatsAppAniv(\''+a.id+'\')" style="background:#16A34A;color:white;border:none;border-radius:7px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><i class="ti ti-brand-whatsapp" style="font-size:14px"></i>Enviar via WhatsApp</button>' : '<span style="font-size:11px;color:#9CA3AF">Sem celular cadastrado</span>')
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function exportarAniversariantesPDF(){
+  const hoje = new Date();
+  const selMes = document.getElementById('aniv-mes-filtro');
+  const mes = selMes ? Number(selMes.value) : hoje.getMonth();
+  const anoAtual = hoje.getFullYear();
+
+  const aniversariantes = admList
+    .filter(a => a.coluna===4 && a.statusEmprego==='ativo' && a.nascimento)
+    .map(a => {
+      const partes = a.nascimento.split('-').map(Number);
+      return {a, mes: partes[1]-1, dia: partes[2]};
+    })
+    .filter(x => x.mes === mes)
+    .sort((x,y)=>x.dia-y.dia);
+
+  const linhas = aniversariantes.length === 0
+    ? '<tr><td colspan="4" style="text-align:center;padding:24px;color:#9CA3AF">Nenhum aniversariante em '+MESES_NOMES[mes]+'</td></tr>'
+    : aniversariantes.map(({a,dia})=>{
+        const jaEnviado = a.aniversarioEnviadoAno === anoAtual;
+        return '<tr>'
+          + '<td>'+String(dia).padStart(2,'0')+'/'+String(mes+1).padStart(2,'0')+'</td>'
+          + '<td>'+a.nome+'</td>'
+          + '<td>'+(a.cargo||'—')+'</td>'
+          + '<td>'+(a.unidade||'—')+'</td>'
+          + '<td style="color:'+(jaEnviado?'#16A34A':'#9CA3AF')+'">'+(jaEnviado?'Enviada':'—')+'</td>'
+          + '</tr>';
+      }).join('');
+
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>Aniversariantes — ${MESES_NOMES[mes]}</title>
+  <style>
+    body{font-family:'Segoe UI',sans-serif;background:white;color:#111827;margin:0;padding:32px}
+    .header{background:#DB2777;color:white;padding:24px 28px;border-radius:12px;margin-bottom:24px}
+    .header h1{font-size:22px;margin:0 0 4px}
+    .header p{font-size:13px;opacity:.85;margin:0}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th{text-align:left;padding:10px 12px;background:#FDF2F8;color:#831843;font-weight:600;border-bottom:1px solid #FBCFE8}
+    td{padding:10px 12px;border-bottom:1px solid #F3F4F6}
+    .footer{margin-top:32px;padding-top:16px;border-top:1px solid #E5E7EB;font-size:11px;color:#9CA3AF;text-align:center}
+    @media print{body{padding:16px}}
+  </style></head><body>
+  <div class="header">
+    <h1>🎂 Aniversariantes — ${MESES_NOMES[mes]}</h1>
+    <p>Óticas Carol · Departamento Pessoal · ${aniversariantes.length} colaborador(es)</p>
+  </div>
+  <table>
+    <thead><tr><th>Data</th><th>Nome</th><th>Cargo</th><th>Unidade</th><th>Mensagem</th></tr></thead>
+    <tbody>${linhas}</tbody>
+  </table>
+  <div class="footer">Gerado pelo Sistema RH · Óticas Carol · ${new Date().toLocaleDateString('pt-BR')}</div>
+  <script>window.onload=()=>{window.print();}<\/script>
+  </body></html>`;
+  const blob = new Blob([html],{type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  window.open(url,'_blank');
+}
+
+function copiarMensagemAniv(id, btn){
+  const ta = document.getElementById('aniv-msg-'+id);
+  if(!ta) return;
+  const finalizar = () => {
+    if(!btn) return;
+    const original = btn.innerHTML;
+    btn.innerHTML = '<i class="ti ti-check" style="font-size:14px"></i>Copiado!';
+    setTimeout(()=>{ btn.innerHTML = original; }, 1800);
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(ta.value).then(finalizar).catch(()=>{
+      ta.select(); document.execCommand('copy'); finalizar();
+    });
+  } else {
+    ta.select(); document.execCommand('copy'); finalizar();
+  }
+}
+
+function enviarWhatsAppAniv(id){
+  const a = admList.find(x=>x.id==id);
+  if(!a) return;
+  const ta = document.getElementById('aniv-msg-'+id);
+  const msg = ta ? ta.value : sugerirMensagemAniversario(a.nome);
+  let num = (a.celular||'').replace(/\D/g,'');
+  if(num.length === 11 || num.length === 10) num = '55' + num;
+  const waUrl = 'https://wa.me/' + num + '?text=' + encodeURIComponent(msg);
+
+  const link = document.createElement('a');
+  link.href = waUrl; link.target = '_blank'; link.rel = 'noopener';
+  document.body.appendChild(link); link.click(); document.body.removeChild(link);
+
+  a.aniversarioEnviadoAno = new Date().getFullYear();
+  if(a.origemFirebase){
+    dbRH.ref('candidatos/'+a.chaveFirebase+'/aniversarioEnviadoAno').set(a.aniversarioEnviadoAno);
+  } else {
+    saveAdmList();
+  }
+  renderPaginaAniversariantes();
+}
+
 function nav(id,el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('show'));
   document.getElementById('pg-'+id).classList.add('show');
@@ -2015,6 +2460,8 @@ function nav(id,el){
   if(el)el.classList.add('active');
   if(id === 'documentos') renderPaginaDocumentos();
   if(id === 'ferias') renderPaginaFerias();
+  if(id === 'aniversariantes') renderPaginaAniversariantes();
+  if(id === 'terminos') renderPaginaTerminos();
   if(id === 'unidades') renderUnidades();
   if(id === 'funcionarios') renderTabelaFuncionarios();
   if(id === 'relatorios'){ renderRelatorio('admissoes'); }
@@ -2045,18 +2492,46 @@ let candidatosOnline = {};
 let admList = []; // declarado aqui também (early) para garantir que existe quando o listener do Firebase disparar
 
 // ===== PERSISTÊNCIA DO ADMLIST (admissões manuais) no Firebase =====
+// ===== PERSISTÊNCIA LOCAL DE ANEXOS (foto/documentos) =====
+// Firebase não guarda foto/documentos (arquivos grandes em base64, ver saveAdmList).
+// Por isso eles são salvos aqui no localStorage do navegador, para sobreviverem
+// a fechar e reabrir o sistema — sem depender só da memória da aba aberta.
+function salvarAnexosLocal(id, foto, documentos){
+  try{
+    const temFoto = !!foto;
+    const temDocs = documentos && Object.keys(documentos).length>0;
+    if(!temFoto && !temDocs){ localStorage.removeItem('admAnexos_'+id); return; }
+    localStorage.setItem('admAnexos_'+id, JSON.stringify({foto: foto||'', documentos: documentos||{}}));
+  }catch(e){
+    // localStorage cheio (limite ~5-10MB) — segue sem travar o sistema
+    console.warn('Não foi possível salvar anexos localmente (armazenamento cheio?)', e);
+  }
+}
+function carregarAnexosLocal(id){
+  try{
+    const raw = localStorage.getItem('admAnexos_'+id);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+function removerAnexosLocal(id){
+  try{ localStorage.removeItem('admAnexos_'+id); }catch(e){}
+}
+
 function saveAdmList(){
-  if(!dbRH) return;
   // Salva apenas as admissões criadas manualmente (não as vindas do Firebase/portal)
   const manuais = admList
     .filter(a => !a.origemFirebase)
     .map(a => {
-      // Remove campos grandes (base64 de foto/contrato) do JSON para não sobrecarregar
-      // Esses campos são opcionais e podem ser perdidos sem impacto crítico
-      const { foto, contratoDados, ...rest } = a;
-      return { ...rest, _temFoto: !!foto, _temContrato: !!contratoDados };
+      // Remove campos grandes (base64 de foto/contrato/documentos) do JSON para não sobrecarregar
+      // Esses campos são opcionais e podem ser perdidos sem impacto crítico — ficam salvos
+      // à parte, no localStorage, via salvarAnexosLocal()
+      const { foto, contratoDados, documentos, ...rest } = a;
+      return { ...rest, _temFoto: !!foto, _temContrato: !!contratoDados, _qtdDocumentos: documentos ? Object.keys(documentos).length : 0 };
     });
-  dbRH.ref('admissoes_manuais').set(manuais.length > 0 ? manuais : null);
+  // Salva sempre localmente — garante que nada se perde ao fechar o navegador,
+  // mesmo quando o Firebase está indisponível (ex: testando o arquivo localmente)
+  try{ localStorage.setItem('admissoesManuaisLocal', JSON.stringify(manuais)); }catch(e){}
+  if(dbRH) dbRH.ref('admissoes_manuais').set(manuais.length > 0 ? manuais : null);
 }
 
 // Funde os dados vindos do Firebase com o admList local, sem apagar foto/contrato
@@ -2073,6 +2548,7 @@ function sincronizarAdmListManuais(dados){
       const contratoLocal = existente.contratoDados;
       const contratoMimeLocal = existente.contratoMimeType;
       const contratoNomeLocal = existente.contratoNomeArquivo;
+      const documentosLocal = existente.documentos;
       Object.assign(existente, d);
       if(!existente.foto && fotoLocal) existente.foto = fotoLocal;
       if(!existente.contratoDados && contratoLocal){
@@ -2080,7 +2556,21 @@ function sincronizarAdmListManuais(dados){
         existente.contratoMimeType = contratoMimeLocal;
         existente.contratoNomeArquivo = contratoNomeLocal;
       }
+      if(!existente.documentos && documentosLocal) existente.documentos = documentosLocal;
+      // Restaura foto/documentos do localStorage caso ainda não estejam presentes
+      if(!existente.foto || !existente.documentos){
+        const salvo = carregarAnexosLocal(existente.id);
+        if(salvo){
+          if(!existente.foto && salvo.foto) existente.foto = salvo.foto;
+          if(!existente.documentos && salvo.documentos && Object.keys(salvo.documentos).length) existente.documentos = salvo.documentos;
+        }
+      }
     } else {
+      const salvo = carregarAnexosLocal(d.id);
+      if(salvo){
+        if(salvo.foto) d.foto = salvo.foto;
+        if(salvo.documentos && Object.keys(salvo.documentos).length) d.documentos = salvo.documentos;
+      }
       admList.push(d);
     }
   });
@@ -2090,11 +2580,19 @@ function sincronizarAdmListManuais(dados){
 // feita em um computador aparece automaticamente no outro, sem precisar recarregar a página.
 function loadAdmList(callback){
   if(!dbRH){
+    // Sem Firebase — carrega do localStorage, que é onde saveAdmList() sempre grava.
     // Importante: adia para o próximo ciclo do event loop. Se chamarmos o callback
     // AGORA (de forma síncrona), o restante do script ainda não terminou de rodar —
     // variáveis declaradas mais abaixo (como as do Kanban) ainda não existem, e isso
     // quebra a página inteira silenciosamente (inclusive o botão "Nova admissão").
-    setTimeout(() => { if(callback) callback(); }, 0);
+    setTimeout(() => {
+      try{
+        const raw = localStorage.getItem('admissoesManuaisLocal');
+        const salvas = raw ? JSON.parse(raw) : [];
+        sincronizarAdmListManuais(salvas);
+      }catch(e){}
+      if(callback) callback();
+    }, 0);
     return;
   }
   let primeiraVez = true;
@@ -2441,7 +2939,35 @@ let cs=0;const ts=5;
 let fotoData='';
 
 function openModal(){
-  document.getElementById('overlay').classList.add('open');
+  const overlay = document.getElementById('overlay');
+  // Move o painel para o topo da página atualmente visível, logo abaixo do
+  // cabeçalho (título + botão) — assim ele aparece "acima de tudo" no fluxo
+  // normal da página, em vez de um overlay fixo em tela cheia.
+  const activePage = document.querySelector('.page.show');
+  if(activePage){
+    const header = activePage.querySelector('.ph');
+    if(header && header.nextElementSibling !== overlay){
+      header.insertAdjacentElement('afterend', overlay);
+    } else if(!header && activePage.firstElementChild !== overlay){
+      activePage.insertBefore(overlay, activePage.firstElementChild);
+    }
+  }
+  overlay.classList.add('open');
+  if(overlay.scrollIntoView) overlay.scrollIntoView({behavior:'smooth', block:'start'});
+  // Restaura a estrutura normal do formulário (caso a última vez tenha terminado
+  // numa admissão concluída, que troca abas/rodapé pela tela de sucesso)
+  document.querySelector('.modal-tabs').style.display='';
+  document.getElementById('tpSucesso').classList.remove('show');
+  document.querySelector('.modal-foot').innerHTML = '<button class="btn-out" id="mbk" onclick="prevS()" style="display:none"><i class="ti ti-arrow-left"></i>Voltar</button><span class="step-info" id="sinfo">Etapa 1 de 5</span><button class="btn-out" onclick="closeModal()">Cancelar</button><button class="btn-blue" id="mnx" onclick="nextS()">Próxima etapa <i class="ti ti-arrow-right"></i></button>';
+  document.querySelector('.modal-title').textContent = 'Nova admissão';
+  editandoAdmId = null;
+  modoImportacaoDireta = false;
+  // reset campos de texto (evita que dados de um cadastro anterior fiquem visíveis)
+  ['f-nome','f-celular','f-cargo','f-cpf','f-rg','f-nasc','f-sexo','f-civil','f-instrucao','f-email','f-endereco','f-dataadmissao','f-salario','f-jornada','f-horario','f-banco','f-agencia','f-conta','pix-tipo','pix-chave'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+  popularLojaAtualWizard();
+  const fu = document.getElementById('f-unidade'); if(fu) fu.value='';
+  const rgc = document.getElementById('rg-contrato');
+  if(rgc) rgc.querySelectorAll('.ropt').forEach((o,i)=>o.classList.toggle('sel', i===0));
   goStep(0);
   // reset foto
   fotoData='';
@@ -2452,6 +2978,8 @@ function openModal(){
   document.getElementById('fbtn-rm').style.display='none';
   document.getElementById('foto-ok').classList.remove('show');
   document.getElementById('finput').value='';
+  // reset documentos anexados
+  resetDocsAnexos();
   // reset contab
   document.getElementById('cok').classList.remove('show');
   const bc=document.getElementById('btn-ct');
@@ -2511,6 +3039,48 @@ function envContab(){
 }
 
 // FOTO
+let editandoAdmId=null; // id da admissão sendo editada (null = criando uma nova)
+let modoImportacaoDireta=false; // true quando aberto por "Novo funcionário" (Funcionários) — pula o funil do Kanban
+let docAnexos={}; // { rg:{nome,mime,dados}, cpf:{...}, ... }
+const DOCS_KEYS=['rg','cpf','ctps','endereco','aso','bancarios','pisnit','fichareg'];
+function anexarDoc(key,input){
+  if(!input.files||!input.files[0])return;
+  const file=input.files[0];
+  const reader=new FileReader();
+  reader.onload=e=>{
+    docAnexos[key]={nome:file.name,mime:file.type,dados:e.target.result};
+    const fn=document.getElementById('docfn-'+key);
+    if(fn) fn.textContent=file.name;
+    const tag=document.getElementById('doctag-'+key);
+    if(tag){tag.textContent='Recebido';tag.classList.remove('dt-pend','dt-wait');tag.classList.add('dt-ok');}
+    const btn=document.getElementById('docbtn-'+key);
+    if(btn) btn.style.display='none';
+    const rm=document.getElementById('docrm-'+key);
+    if(rm) rm.style.display='flex';
+  };
+  reader.readAsDataURL(file);
+}
+function removerDoc(key){
+  delete docAnexos[key];
+  const fn=document.getElementById('docfn-'+key);
+  if(fn) fn.textContent='';
+  const tag=document.getElementById('doctag-'+key);
+  if(tag){
+    const textoPadrao = key==='fichareg' ? 'Opcional' : 'Pendente';
+    const classePadrao = key==='fichareg' ? 'dt-wait' : 'dt-pend';
+    tag.textContent=textoPadrao;tag.classList.remove('dt-ok','dt-pend','dt-wait');tag.classList.add(classePadrao);
+  }
+  const btn=document.getElementById('docbtn-'+key);
+  if(btn) btn.style.display='flex';
+  const rm=document.getElementById('docrm-'+key);
+  if(rm) rm.style.display='none';
+  const input=document.getElementById('docfile-'+key);
+  if(input) input.value='';
+}
+function resetDocsAnexos(){
+  docAnexos={};
+  DOCS_KEYS.forEach(removerDoc);
+}
 function loadFoto(input){
   if(!input.files||!input.files[0])return;
   const reader=new FileReader();
@@ -2569,7 +3139,23 @@ function enviarWhatsAppNovaAdmissao(){
   let num = celular;
   if(num.length === 11 || num.length === 10) num = '55' + num;
 
-  window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(msg), '_blank');
+  const waUrl = 'https://wa.me/' + num + '?text=' + encodeURIComponent(msg);
+
+  // Usa um link real (<a target="_blank">) em vez de window.open — mais confiável,
+  // pois alguns bloqueadores de pop-up impedem window.open() mesmo vindo de um clique.
+  const a = document.createElement('a');
+  a.href = waUrl;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  // Sempre deixa um link visível de apoio, caso a aba não tenha aberto sozinha
+  ['waFallback1','waFallback2'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el){ el.href = waUrl; el.style.display = 'block'; }
+  });
 
   ['lok1','lok2'].forEach(id=>{
     const el = document.getElementById(id);
@@ -2578,34 +3164,90 @@ function enviarWhatsAppNovaAdmissao(){
 }
 
 function finalAdm(){
-  const nome = document.getElementById('f-nome').value.trim() || 'Novo Colaborador';
+  const val = id => document.getElementById(id)?.value.trim() || '';
+  const nome = val('f-nome') || 'Novo Colaborador';
+  const celular = val('f-celular');
+  const cargo = val('f-cargo');
+  const unidade = document.getElementById('f-unidade')?.value || '';
+  const cpf = val('f-cpf');
+  const rg = val('f-rg');
+  const nascimento = val('f-nasc');
+  const sexo = document.getElementById('f-sexo')?.value || '';
+  const estadoCivil = document.getElementById('f-civil')?.value || '';
+  const instrucao = document.getElementById('f-instrucao')?.value || '';
+  const email = val('f-email');
+  const endereco = val('f-endereco');
+  const lojaAtualPreferida = document.getElementById('f-lojaatual')?.value || '';
+  const dataAdmissao = val('f-dataadmissao');
+  const salario = val('f-salario');
+  const jornada = document.getElementById('f-jornada')?.value || '';
+  const horario = val('f-horario');
+  const tipoContrato = document.querySelector('#rg-contrato .ropt.sel')?.textContent.trim() || '';
+  const banco = val('f-banco');
+  const agencia = val('f-agencia');
+  const conta = val('f-conta');
+  const pixTipo = document.getElementById('pix-tipo')?.value || '';
+  const pixChave = val('pix-chave');
   const initials = nome.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
   const colors = ['av-b','av-g','av-a','av-gr','av-p'];
-  const color = colors[admList.length % colors.length];
-  const proto = 'ADM-2025-' + (String(admList.length+1).padStart(4,'0'));
   const hoje = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
-  admList.push({id: Date.now(), nome, initials, color, proto, foto: fotoData, coluna: 0, data: hoje});
+
+  const dadosCompletos = {nome, celular, cargo, unidade, cpf, rg, nascimento, sexo, estadoCivil, instrucao, email, endereco, lojaAtualPreferida, dataAdmissao, salario, jornada, horario, tipoContrato, banco, agencia, conta, pixTipo, pixChave};
+  const usuarioResponsavel = nomeUsuarioParaRegistro();
+
+  let registro;
+  if(editandoAdmId){
+    // Edição de um lançamento já existente — atualiza no lugar em vez de criar outro
+    registro = admList.find(x=>x.id==editandoAdmId);
+    if(registro){
+      Object.assign(registro, dadosCompletos, {initials, foto: fotoData, documentos: docAnexos});
+      registro.ultimaEdicaoPor = usuarioResponsavel;
+      registro.ultimaEdicaoEm = new Date().toISOString();
+      // Se o colaborador já está admitido de fato, a Unidade/Loja atual escolhidas
+      // aqui precisam refletir nos campos oficiais (lojaRegistroId/lojaAtualId) —
+      // são eles que o resto do sistema usa (Funcionários, Términos de Contrato,
+      // Transferência, Férias por loja etc.), não só o texto do formulário.
+      if(registro.coluna === 4 && registro.statusEmprego === 'ativo'){
+        const novaUnid = unidades.find(u=>u.nome===unidade);
+        const novaLojaAtual = unidades.find(u=>u.nome===lojaAtualPreferida) || novaUnid;
+        if(novaUnid) registro.lojaRegistroId = novaUnid.id;
+        if(novaLojaAtual) registro.lojaAtualId = novaLojaAtual.id;
+        // A data de admissão oficial (usada em Términos de Contrato e Férias)
+        // também precisa refletir o que foi editado aqui — senão o resto do
+        // sistema continua calculando tudo com base na data antiga.
+        if(dataAdmissao) registro.dataAdmissaoOficial = dataAdmissao;
+      }
+    }
+  }
+  if(!registro){
+    const color = colors[admList.length % colors.length];
+    const proto = 'ADM-2025-' + (String(admList.length+1).padStart(4,'0'));
+    registro = Object.assign({id: Date.now(), initials, color, proto, foto: fotoData, documentos: docAnexos, coluna: 0, data: hoje, criadoPor: usuarioResponsavel, criadoEm: new Date().toISOString(), ultimaEdicaoPor: usuarioResponsavel, ultimaEdicaoEm: new Date().toISOString()}, dadosCompletos);
+    admList.push(registro);
+  }
+  const proto = registro.proto;
+  salvarAnexosLocal(registro.id, fotoData, docAnexos);
+  editandoAdmId = null;
   saveAdmList();
   renderKanban();
   updateMetrics();
 
-  // tela final
+  if(modoImportacaoDireta){
+    // Modo importação: pula o funil do Kanban e vai direto para a confirmação
+    // de data de admissão + loja, deixando o colaborador já ativo ao final.
+    modoImportacaoDireta = false;
+    confirmarAdmissao(registro.id);
+    return;
+  }
+
+  // tela final — esconde as etapas e mostra o painel de sucesso, sem destruir
+  // o formulário (assim o modal pode ser reaberto depois, inclusive para editar)
   document.querySelector('.modal-tabs').style.display='none';
+  document.querySelectorAll('.modal-body > .tab-panel').forEach(p=>p.classList.remove('show'));
+  document.getElementById('sucNome').textContent = nome;
+  document.getElementById('sucProto').textContent = proto;
+  document.getElementById('tpSucesso').classList.add('show');
   document.querySelector('.modal-foot').innerHTML='<button class="btn-blue" onclick="closeModal()" style="width:100%;justify-content:center"><i class="ti ti-home"></i> Voltar ao painel</button>';
-  document.querySelector('.modal-body').innerHTML=`
-    <div style="text-align:center;padding:32px 20px">
-      <div style="width:68px;height:68px;background:#EFF6FF;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
-        <i class="ti ti-circle-check" style="font-size:38px;color:var(--blue)"></i>
-      </div>
-      <div style="font-size:19px;font-weight:600;color:#111827;margin-bottom:8px">Admissão concluída!</div>
-      <div style="font-size:13px;color:#6B7280;margin-bottom:22px">${nome} foi cadastrado(a) com sucesso. Protocolo: <strong>${proto}</strong></div>
-      <div style="display:flex;flex-direction:column;gap:8px;text-align:left;max-width:400px;margin:0 auto">
-        <div style="background:#EFF6FF;padding:11px 14px;border-radius:8px;font-size:13px;color:#1E40AF;display:flex;align-items:center;gap:9px"><i class="ti ti-photo" style="flex-shrink:0"></i>Foto salva no cadastro</div>
-        <div style="background:#EFF6FF;padding:11px 14px;border-radius:8px;font-size:13px;color:#1E40AF;display:flex;align-items:center;gap:9px"><i class="ti ti-link" style="flex-shrink:0"></i>Link de documentos enviado ao colaborador</div>
-        <div style="background:#FFFBEB;padding:11px 14px;border-radius:8px;font-size:13px;color:#92400E;border:1px solid #FDE68A;display:flex;align-items:center;gap:9px"><i class="ti ti-send" style="flex-shrink:0"></i>Documentação enviada à contabilidade</div>
-        <div style="background:#F0FDF4;padding:11px 14px;border-radius:8px;font-size:13px;color:#166534;display:flex;align-items:center;gap:9px"><i class="ti ti-mail" style="flex-shrink:0"></i>E-mail de boas-vindas enviado</div>
-      </div>
-    </div>`;
 }
 
 // ===== KANBAN COMPLETO =====
@@ -2626,7 +3268,12 @@ function renderKanban(){
     if(!el) return;
     // Coluna "Admitido" nunca retém cards: ao confirmar a admissão o colaborador
     // sai do funil do Kanban e passa a ser acompanhado na página "Funcionários".
-    const cards = col.id === 4 ? [] : admList.filter(a => (a.coluna||0) === col.id);
+    // Coluna "Admitido" mostra os cards que chegaram até aqui mas ainda aguardam
+    // a confirmação final (data de admissão + loja). Assim que confirmados
+    // (statusEmprego='ativo'), saem do Kanban e passam a aparecer só em "Funcionários".
+    const cards = col.id === 4
+      ? admList.filter(a => (a.coluna||0) === 4 && a.statusEmprego !== 'ativo')
+      : admList.filter(a => (a.coluna||0) === col.id);
     document.getElementById('cnt'+col.id).textContent = cards.length;
     if(cards.length === 0){
       el.innerHTML = '<div class="kempty"><i class="ti '+col.icone+'" style="font-size:24px;display:block;margin-bottom:8px;opacity:.3"></i>'+kEmptyMsg[col.id]+'</div>';
@@ -2636,13 +3283,20 @@ function renderKanban(){
       const av = a.foto
         ? '<div class="kav"><img src="'+a.foto+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/></div>'
         : '<div class="kav '+a.color+'">'+a.initials+'</div>';
-      const prevBtn = col.id > 0
+      const prevBtn = (col.id > 0 && col.id < 4)
         ? '<button onclick="moverCard(\''+a.id+'\',-1)" title="Voltar etapa" style="background:#F3F4F6;border:none;border-radius:5px;width:24px;height:24px;cursor:pointer;display:flex;align-items:center;justify-content:center"><i class="ti ti-chevron-left" style="font-size:12px;color:#6B7280"></i></button>'
         : '<span style="width:24px"></span>';
       const nextBtn = col.id < 4
         ? '<button onclick="moverCard(\''+a.id+'\',1)" title="Avançar etapa" style="background:#EFF6FF;border:none;border-radius:5px;width:24px;height:24px;cursor:pointer;display:flex;align-items:center;justify-content:center"><i class="ti ti-chevron-right" style="font-size:12px;color:var(--blue)"></i></button>'
-        : '<button onclick="confirmarAdmissao(\''+a.id+'\')" title="Confirmar admissão" style="background:#F0FDF4;border:none;border-radius:5px;width:24px;height:24px;cursor:pointer;display:flex;align-items:center;justify-content:center"><i class="ti ti-check" style="font-size:12px;color:#16A34A"></i></button>';
+        : '';
+      const confirmarBtn = col.id === 4
+        ? '<button onclick="confirmarAdmissao(\''+a.id+'\')" title="Confirmar admissão" style="background:#F0FDF4;border:none;border-radius:5px;width:24px;height:24px;cursor:pointer;display:flex;align-items:center;justify-content:center"><i class="ti ti-check" style="font-size:12px;color:#16A34A"></i></button>'
+        : '';
+      const naoConfirmarBtn = col.id === 4
+        ? '<button onclick="naoConfirmarAdmissao(\''+a.id+'\')" title="Não confirmar (devolver para Assinatura)" style="background:#FEF2F2;border:none;border-radius:5px;width:24px;height:24px;cursor:pointer;display:flex;align-items:center;justify-content:center"><i class="ti ti-x" style="font-size:12px;color:#DC2626"></i></button>'
+        : '';
       const delBtn = '<button onclick="excluirCard(\''+a.id+'\')" title="Excluir lançamento" style="background:#FEF2F2;border:none;border-radius:5px;width:24px;height:24px;cursor:pointer;display:flex;align-items:center;justify-content:center"><i class="ti ti-trash" style="font-size:12px;color:#DC2626"></i></button>';
+      const editBtn = '<button onclick="editarCard(\''+a.id+'\')" title="Editar lançamento" style="background:#F3F4F6;border:none;border-radius:5px;width:24px;height:24px;cursor:pointer;display:flex;align-items:center;justify-content:center"><i class="ti ti-pencil" style="font-size:12px;color:#374151"></i></button>';
       const tagColor = col.id===4 ? 'tag-t' : col.id===1 ? 'tag-d' : 'tag-u';
       const onlineBadge = a.origemFirebase
         ? '<span class="ktag" style="background:#F0FDF4;color:#16A34A;font-size:10px;display:inline-flex;align-items:center;gap:3px"><i class="ti ti-cloud-check" style="font-size:10px"></i>Online</span>'
@@ -2661,13 +3315,23 @@ function renderKanban(){
         + '<div class="ktags"><span class="ktag '+tagColor+'">'+col.titulo+'</span><span class="ktag" style="background:#F3F4F6;color:#6B7280;font-size:10px">'+a.proto+'</span>'+onlineBadge+'</div>'
         + '<div class="kprog"><div class="kprog-f" style="width:'+col.prog+'%;background:'+(col.id===4?'#16A34A':'var(--blue)')+'"></div></div>'
         + contratoRow
-        + '<div class="kft"><span class="kdate"><i class="ti ti-calendar" style="font-size:11px"></i>'+a.data+'</span>'
-        + '<div style="display:flex;gap:3px;align-items:center">'+prevBtn+nextBtn+delBtn+'</div>'
+        + '<div class="kft"><span class="kdate"><i class="ti ti-calendar" style="font-size:11px"></i>'+a.data+(a.criadoPor?' · '+a.criadoPor:'')+'</span>'
+        + '<div style="display:flex;gap:3px;align-items:center">'+prevBtn+nextBtn+confirmarBtn+naoConfirmarBtn+editBtn+delBtn+'</div>'
         + '</div></div>';
     }).join('');
   });
   // total badge
   document.getElementById('adm-badge').textContent = admList.length;
+  const badgeAniv = document.getElementById('aniv-badge');
+  if(badgeAniv){
+    const mesAtual = new Date().getMonth();
+    badgeAniv.textContent = admList.filter(a => a.coluna===4 && a.statusEmprego==='ativo' && a.nascimento && (Number(a.nascimento.split('-')[1])-1)===mesAtual).length;
+  }
+  const badgeTerm = document.getElementById('term-badge');
+  if(badgeTerm && typeof colaboradoresComTermino === 'function'){
+    const urgentes = colaboradoresComTermino().filter(c => c.dias90>=0 && (c.dias45<=15 || c.dias90<=15));
+    badgeTerm.textContent = urgentes.length;
+  }
 }
 
 // Anexa o contrato de trabalho assinado a um card (etapa Assinatura)
@@ -2707,6 +3371,24 @@ function anexarContrato(id, input){
   reader.readAsDataURL(file);
 }
 
+// Card chegou em "Admitido" mas a admissão não deve ser confirmada agora —
+// devolve para "Assinatura" para revisão, sem excluir o lançamento
+function naoConfirmarAdmissao(id){
+  const a = admList.find(x=>x.id==id);
+  if(!a) return;
+  if(!confirm('Devolver '+a.nome+' para a etapa de Assinatura?\n\nA admissão não será confirmada agora.')) return;
+  a.coluna = 3;
+  if(a.origemFirebase){
+    a.movidaManualmente = true;
+    const novoStatus = COLUNA_PARA_STATUS[3];
+    if(novoStatus) dbRH.ref('candidatos/'+a.chaveFirebase+'/status').set(novoStatus);
+  } else {
+    saveAdmList();
+  }
+  renderKanban();
+  updateMetrics();
+}
+
 function moverCard(id, delta){
   const a = admList.find(x=>x.id==id);
   if(!a) return;
@@ -2738,10 +3420,27 @@ function confirmarAdmissao(id){
   document.getElementById('dataadm-nome').textContent = a.nome;
   // Sugere hoje como padrão
   document.getElementById('dataadm-input').value = new Date().toISOString().split('T')[0];
-  // Popula select de unidades
+  // Popula select de unidades (registro e loja atual)
+  const opcoesUnidades = unidades.filter(u=>u.status==='Ativa').map(u=>'<option value="'+u.id+'">'+u.nome+'</option>').join('');
   const selUnid = document.getElementById('dataadm-unidade');
-  selUnid.innerHTML = unidades.filter(u=>u.status==='Ativa').map(u=>'<option value="'+u.id+'">'+u.nome+'</option>').join('');
+  selUnid.innerHTML = opcoesUnidades;
+  // Já pré-seleciona a unidade que foi escolhida lá no formulário de admissão
+  const unidPreSelecionada = unidades.find(u=>u.nome===a.unidade && u.status==='Ativa');
+  if(unidPreSelecionada) selUnid.value = unidPreSelecionada.id;
+  const selLojaAtual = document.getElementById('dataadm-lojaatual');
+  selLojaAtual.innerHTML = opcoesUnidades;
+  // Se uma "loja atual" já foi escolhida no formulário, usa ela; senão, mesma da registro
+  const lojaAtualPreSelecionada = unidades.find(u=>u.nome===a.lojaAtualPreferida && u.status==='Ativa');
+  selLojaAtual.value = lojaAtualPreSelecionada ? lojaAtualPreSelecionada.id : selUnid.value;
   document.getElementById('ov-dataadm').classList.add('open');
+}
+
+// Quando a unidade de registro muda, atualiza a loja atual junto (a pessoa pode
+// ajustar a loja atual manualmente depois, se for diferente)
+function sincronizarLojaAtualPadrao(){
+  const selUnid = document.getElementById('dataadm-unidade');
+  const selLojaAtual = document.getElementById('dataadm-lojaatual');
+  if(selUnid && selLojaAtual) selLojaAtual.value = selUnid.value;
 }
 
 function fecharModalDataAdm(){
@@ -2752,20 +3451,23 @@ function fecharModalDataAdm(){
 function confirmarComData(){
   const dataAdmissao = document.getElementById('dataadm-input').value;
   const unidadeId = document.getElementById('dataadm-unidade').value;
+  const lojaAtualId = document.getElementById('dataadm-lojaatual').value;
   if(!dataAdmissao){ alert('Informe a data de admissão.'); return; }
   if(!unidadeId){ alert('Informe a unidade de registro.'); return; }
+  if(!lojaAtualId){ alert('Informe a loja atual.'); return; }
 
   const a = admList.find(x=>x.id==idAdmissaoPendente);
   if(!a) return;
 
   const unid = unidades.find(u=>u.id==unidadeId);
+  const lojaAtual = unidades.find(u=>u.id==lojaAtualId);
 
   a.coluna = 4;
   a.dataAdmissaoOficial = dataAdmissao; // usado para cálculo de férias
   a.lojaRegistroId = unidadeId; // FIXO — nunca muda (folha/férias)
-  a.lojaAtualId    = unidadeId; // pode mudar com transferências
+  a.lojaAtualId    = lojaAtualId; // pode mudar com transferências
   a.statusEmprego  = 'ativo';
-  a.historicoTransferencias = [{ unidadeId, unidadeNome: unid?.nome, data: dataAdmissao, motivo: 'Admissão' }];
+  a.historicoTransferencias = [{ unidadeId: lojaAtualId, unidadeNome: lojaAtual?.nome, data: dataAdmissao, motivo: 'Admissão' }];
 
   if(a.origemFirebase){
     a.movidaManualmente = true;
@@ -2775,7 +3477,7 @@ function confirmarComData(){
       coluna: 4,
       dataAdmissaoOficial: dataAdmissao,
       lojaRegistroId: parseInt(unidadeId),
-      lojaAtualId: parseInt(unidadeId),
+      lojaAtualId: parseInt(lojaAtualId),
       statusEmprego: 'ativo',
       movidaManualmente: true,
       historicoTransferencias: a.historicoTransferencias,
@@ -2787,12 +3489,466 @@ function confirmarComData(){
   updateMetrics();
   adicionarFuncionario(a);
   fecharModalDataAdm();
+  closeModal(); // fecha também o painel de admissão, se estiver aberto (ex: modo importação)
 
   const dataFmt = new Date(dataAdmissao+'T00:00').toLocaleDateString('pt-BR');
   setTimeout(()=>{
-    alert('✅ '+a.nome+' foi admitido(a) com sucesso!\n\nData de admissão: '+dataFmt+'\nUnidade: '+(unid?.nome||'—')+'\n\nO colaborador está disponível na página "Funcionários" e já entrou na programação de Férias.');
+    alert('✅ '+a.nome+' foi admitido(a) com sucesso!\n\nData de admissão: '+dataFmt+'\nUnidade de registro: '+(unid?.nome||'—')+'\nLoja atual: '+(lojaAtual?.nome||'—')+'\n\nO colaborador está disponível na página "Funcionários" e já entrou na programação de Férias.');
   }, 200);
 }
+
+// ===== IMPORTAÇÃO EM MASSA (planilha) =====
+// Garante que uma unidade com esse nome existe — se não existir, cria automaticamente
+// (usado na importação em massa, quando a planilha cita uma loja nova)
+function garantirUnidade(nome){
+  if(!nome) return null;
+  let u = unidades.find(x => x.nome.toLowerCase() === nome.trim().toLowerCase());
+  if(!u){
+    u = {id: nextUnidId++, nome: nome.trim(), cnpj: '', resp: '', tel: '', end: '', email: '', status: 'Ativa'};
+    unidades.push(u);
+    salvarUnidadesLocal();
+  }
+  return u;
+}
+
+const IMPORTMASSA_COLUNAS = [
+  'Nome completo','CPF','RG','Data de nascimento (AAAA-MM-DD)','Celular','E-mail','Endereço completo',
+  'Unidade de registro','Loja atual (se vazio, usa a de registro)','Departamento','Cargo',
+  'Data de admissão (AAAA-MM-DD)','Salário base','Jornada','Horário','Tipo de contrato',
+  'Banco','Agência','Conta','Tipo de chave PIX','Chave PIX'
+];
+let importMassaLinhas = []; // linhas validadas, prontas para importar
+
+function abrirImportacaoMassa(){
+  document.getElementById('importmassa-arquivo').value = '';
+  document.getElementById('importmassa-preview').innerHTML = '';
+  document.getElementById('importmassa-btn-confirmar').disabled = true;
+  importMassaLinhas = [];
+  document.getElementById('ov-importmassa').classList.add('open');
+}
+function fecharImportacaoMassa(){
+  document.getElementById('ov-importmassa').classList.remove('open');
+}
+
+function baixarModeloImportacao(){
+  if(typeof XLSX === 'undefined'){ alert('A biblioteca de planilhas ainda não carregou. Verifique sua conexão com a internet e tente novamente em alguns segundos.'); return; }
+  const exemplo = [
+    'Maria da Silva','123.456.789-00','12.345.678-9','1995-04-12','21999998888','maria@email.com',
+    'Rua das Flores, 100 - Centro','Kale Ótica Ltda','Kale Ótica Ltda','Vendas','Vendedora',
+    '2024-03-01','2200,00','44h semanais','09h00 às 18h00','CLT – Consolidação das Leis',
+    'Nubank','0001','123456-7','cpf','123.456.789-00'
+  ];
+  const nomesUnidades = unidades.map(u=>u.nome).join(' | ');
+  const ws = XLSX.utils.aoa_to_sheet([
+    IMPORTMASSA_COLUNAS,
+    exemplo,
+    [],
+    ['Unidades disponíveis (copie o nome exatamente como está aqui):'],
+    [nomesUnidades],
+  ]);
+  ws['!cols'] = IMPORTMASSA_COLUNAS.map(()=>({wch:22}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Colaboradores');
+  XLSX.writeFile(wb, 'modelo_importacao_colaboradores.xlsx');
+}
+
+// Ordem interna fixa dos campos (a mesma que IMPORTMASSA_COLUNAS segue)
+const IMPORTMASSA_CHAVES = ['nome','cpf','rg','nascimento','celular','email','endereco','unidadeNome','lojaAtualNome','departamento','cargo','dataAdmissao','salario','jornada','horario','tipoContrato','banco','agencia','conta','pixTipo','pixChave'];
+
+// Sinônimos de cabeçalho aceitos (chave normalizada -> campo interno), pra reconhecer
+// planilhas que a Tatiana já tinha prontas, com nomes de coluna diferentes do modelo
+const HEADER_SYNONYMS = {
+  'nome completo':'nome','nome':'nome','colaborador':'nome',
+  'cpf':'cpf',
+  'rg':'rg',
+  'data de nascimento':'nascimento','nascimento':'nascimento','data nascimento':'nascimento',
+  'celular':'celular','telefone':'celular','whatsapp':'celular',
+  'email':'email','e-mail':'email',
+  'endereco completo':'endereco','endereco':'endereco',
+  'unidade de registro':'unidadeNome','unidade':'unidadeNome','loja registro':'unidadeNome','loja de registro':'unidadeNome',
+  'loja atual':'lojaAtualNome','loja de atuacao':'lojaAtualNome',
+  'departamento':'departamento','setor':'departamento',
+  'cargo':'cargo','funcao':'cargo',
+  'data de admissao':'dataAdmissao','admissao':'dataAdmissao','data admissao':'dataAdmissao',
+  'salario base':'salario','salario':'salario',
+  'jornada':'jornada','jornada de trabalho':'jornada',
+  'horario':'horario',
+  'tipo de contrato':'tipoContrato','contrato':'tipoContrato',
+  'banco':'banco',
+  'agencia':'agencia',
+  'conta':'conta','conta corrente':'conta',
+  'tipo de chave pix':'pixTipo','pix tipo':'pixTipo',
+  'chave pix':'pixChave','pix':'pixChave',
+};
+function normalizarCabecalho(s){
+  return String(s||'').toLowerCase().trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // remove acentos
+    .replace(/\*/g,'').replace(/\(.*?\)/g,'').replace(/\s+/g,' ').trim();
+}
+
+// Aceita datas em vários formatos comuns (AAAA-MM-DD, DD/MM/AAAA, MM/DD/AAAA, com ano de 2 ou 4 dígitos)
+// e devolve sempre no formato AAAA-MM-DD. Retorna '' se não conseguir reconhecer.
+function parseDataFlexivel(valor){
+  const v = String(valor||'').trim();
+  if(!v) return '';
+  if(/^\d{4}-\d{2}-\d{2}$/.test(v)) return v; // já no formato certo
+  const m = v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if(!m) return '';
+  let [,a,b,ano] = m;
+  a = Number(a); b = Number(b);
+  if(ano.length === 2) ano = (Number(ano) <= 30 ? '20' : '19') + ano; // 00-30 -> 2000s, senão 1900s
+  let mes, dia;
+  if(a > 12){ dia = a; mes = b; }        // só pode ser DD/MM
+  else if(b > 12){ mes = a; dia = b; }   // só pode ser MM/DD
+  else { mes = a; dia = b; }             // ambíguo — assume MM/DD (padrão mais comum em planilhas exportadas)
+  if(mes < 1 || mes > 12 || dia < 1 || dia > 31) return '';
+  return ano + '-' + String(mes).padStart(2,'0') + '-' + String(dia).padStart(2,'0');
+}
+
+function processarArquivoImportacao(input){
+  if(!input.files || !input.files[0]) return;
+  if(typeof XLSX === 'undefined'){ alert('A biblioteca de planilhas ainda não carregou. Verifique sua conexão com a internet e tente novamente em alguns segundos.'); return; }
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      const wb = XLSX.read(e.target.result, {type:'array', cellDates:true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const linhas = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, dateNF:'yyyy-mm-dd', defval:''});
+      const naoVazias = linhas.filter(l => l.some(c => String(c||'').trim() !== ''));
+      if(naoVazias.length === 0){ importMassaLinhas = []; renderPreviewImportacao(); return; }
+
+      // Descobre, pelo cabeçalho da planilha, em qual coluna está cada campo —
+      // assim funciona mesmo se a ordem das colunas for diferente do modelo.
+      const cabecalho = naoVazias[0].map(normalizarCabecalho);
+      const colParaChave = cabecalho.map(h => HEADER_SYNONYMS[h] || null);
+      const reconheceuCabecalho = colParaChave.some(c => c !== null);
+
+      const linhasDados = naoVazias.slice(1);
+      importMassaLinhas = linhasDados.map((linha, idx) => {
+        let arr;
+        if(reconheceuCabecalho){
+          // remonta a linha na ordem interna fixa, usando o mapeamento de cabeçalho
+          const porChave = {};
+          linha.forEach((valor, i) => { if(colParaChave[i]) porChave[colParaChave[i]] = valor; });
+          arr = IMPORTMASSA_CHAVES.map(chave => porChave[chave] || '');
+        } else {
+          // não reconheceu nenhum cabeçalho conhecido — assume a ordem do modelo
+          arr = linha;
+        }
+        return validarLinhaImportacao(arr, idx);
+      });
+      renderPreviewImportacao();
+    }catch(err){
+      document.getElementById('importmassa-preview').innerHTML = '<div style="color:#DC2626;font-size:13px;padding:12px;background:#FEF2F2;border-radius:8px">Não consegui ler esse arquivo. Confira se é um .xlsx, .xls ou .csv válido.</div>';
+      document.getElementById('importmassa-btn-confirmar').disabled = true;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function validarLinhaImportacao(linha, idx){
+  const val = i => String(linha[i]||'').trim();
+  const nome = val(0), cpf = val(1), rg = val(2), celular = val(4), email = val(5),
+    endereco = val(6), unidadeNome = val(7), lojaAtualNome = val(8) || unidadeNome, departamento = val(9),
+    cargo = val(10), salario = val(12), jornada = val(13), horario = val(14),
+    tipoContrato = val(15), banco = val(16), agencia = val(17), conta = val(18), pixTipo = val(19), pixChave = val(20);
+
+  const erros = [];
+  // Datas aceitam vários formatos (AAAA-MM-DD, DD/MM/AAAA, MM/DD/AAAA...) e são
+  // normalizadas para AAAA-MM-DD. Só vira erro se o valor preenchido não for reconhecido.
+  const nascimentoBruto = val(3);
+  const nascimento = nascimentoBruto ? parseDataFlexivel(nascimentoBruto) : '';
+  if(nascimentoBruto && !nascimento) erros.push('data de nascimento não reconhecida ("'+nascimentoBruto+'")');
+
+  const dataAdmissaoBruta = val(11);
+  const dataAdmissao = dataAdmissaoBruta ? parseDataFlexivel(dataAdmissaoBruta) : '';
+  if(dataAdmissaoBruta && !dataAdmissao) erros.push('data de admissão não reconhecida ("'+dataAdmissaoBruta+'")');
+
+  // Loja que não bate com nenhuma cadastrada NÃO trava a linha — ela será
+  // criada automaticamente no sistema no momento da importação.
+  const unidadeExistente = unidadeNome ? unidades.find(u => u.nome.toLowerCase() === unidadeNome.toLowerCase()) : null;
+  const lojasNovas = [];
+  if(unidadeNome && !unidadeExistente) lojasNovas.push(unidadeNome);
+  if(lojaAtualNome && lojaAtualNome !== unidadeNome && !unidades.find(u => u.nome.toLowerCase() === lojaAtualNome.toLowerCase())) lojasNovas.push(lojaAtualNome);
+
+  return {
+    linhaNum: idx+2, // +2 = considerando a linha de cabeçalho na planilha original
+    ok: erros.length === 0,
+    erros,
+    lojasNovas, // nomes de lojas que ainda não existem e serão criadas ao confirmar
+    dados: {nome, cpf, rg, nascimento, celular, email, endereco, departamento, cargo, dataAdmissao, salario, jornada, horario, tipoContrato, banco, agencia, conta, pixTipo, pixChave},
+    unidadeNome, lojaAtualNome,
+  };
+}
+
+// Campos editáveis na prévia — [rótulo, chave] — chaves 'unidadeNome'/'lojaAtualNome' ficam
+// direto em cada linha (l.unidadeNome), o resto fica dentro de l.dados
+const IMPORTMASSA_CAMPOS_EDIT = [
+  ['Nome','nome'], ['CPF','cpf'], ['RG','rg'], ['Nascimento','nascimento'], ['Celular','celular'],
+  ['E-mail','email'], ['Endereço','endereco'], ['Unidade registro','unidadeNome'], ['Loja atual','lojaAtualNome'],
+  ['Departamento','departamento'], ['Cargo','cargo'], ['Admissão','dataAdmissao'], ['Salário','salario'],
+  ['Jornada','jornada'], ['Horário','horario'], ['Tipo contrato','tipoContrato'], ['Banco','banco'],
+  ['Agência','agencia'], ['Conta','conta'], ['Tipo PIX','pixTipo'], ['Chave PIX','pixChave'],
+];
+
+function valorCampoImportacao(l, campo){
+  return campo==='unidadeNome' || campo==='lojaAtualNome' ? l[campo] : l.dados[campo];
+}
+
+// Reconstrói a linha na ordem original das colunas e revalida, mantendo a edição do usuário
+function atualizarCampoImportacao(idx, campo, valor){
+  const l = importMassaLinhas[idx];
+  if(campo==='unidadeNome' || campo==='lojaAtualNome') l[campo] = valor;
+  else l.dados[campo] = valor;
+
+  const arr = [
+    l.dados.nome, l.dados.cpf, l.dados.rg, l.dados.nascimento, l.dados.celular, l.dados.email, l.dados.endereco,
+    l.unidadeNome, l.lojaAtualNome, l.dados.departamento, l.dados.cargo, l.dados.dataAdmissao, l.dados.salario,
+    l.dados.jornada, l.dados.horario, l.dados.tipoContrato, l.dados.banco, l.dados.agencia, l.dados.conta,
+    l.dados.pixTipo, l.dados.pixChave,
+  ];
+  const linhaNumOriginal = l.linhaNum;
+  importMassaLinhas[idx] = validarLinhaImportacao(arr, idx);
+  importMassaLinhas[idx].linhaNum = linhaNumOriginal;
+  renderPreviewImportacao();
+}
+
+function renderPreviewImportacao(){
+  const validas = importMassaLinhas.filter(l=>l.ok);
+  const invalidas = importMassaLinhas.filter(l=>!l.ok);
+  let html = '<div style="display:flex;gap:16px;margin-bottom:10px;align-items:center">'
+    + '<div style="font-size:13px"><strong style="color:#16A34A">'+validas.length+'</strong> prontas para importar</div>'
+    + (invalidas.length ? '<div style="font-size:13px"><strong style="color:#DC2626">'+invalidas.length+'</strong> com erro (serão ignoradas)</div>' : '')
+    + '</div>'
+    + '<div style="font-size:11px;color:#9CA3AF;margin-bottom:10px">Qualquer campo pode ser editado direto aqui embaixo — a linha é revalidada assim que você sai do campo.</div>';
+
+  html += '<div style="max-height:420px;overflow:auto;border:1px solid #E5E7EB;border-radius:10px">'
+    + '<table style="border-collapse:collapse;font-size:12px;white-space:nowrap">'
+    + '<thead><tr style="background:#F9FAFB;text-align:left">'
+    + '<th style="padding:8px 10px;position:sticky;left:0;background:#F9FAFB">Linha</th>'
+    + IMPORTMASSA_CAMPOS_EDIT.map(([lbl])=>'<th style="padding:8px 10px">'+lbl+'</th>').join('')
+    + '<th style="padding:8px 10px;position:sticky;right:0;background:#F9FAFB">Status</th>'
+    + '</tr></thead><tbody>'
+    + importMassaLinhas.map((l,idx) => '<tr style="border-top:1px solid #F3F4F6">'
+        + '<td style="padding:6px 10px;color:#9CA3AF;position:sticky;left:0;background:white">'+l.linhaNum+'</td>'
+        + IMPORTMASSA_CAMPOS_EDIT.map(([,campo])=>
+            '<td style="padding:4px 6px"><input value="'+(valorCampoImportacao(l,campo)||'').replace(/"/g,'&quot;')+'" onchange="atualizarCampoImportacao('+idx+',\''+campo+'\',this.value)" style="width:110px;border:1px solid #E5E7EB;border-radius:5px;padding:5px 7px;font-size:12px"/></td>'
+          ).join('')
+        + '<td style="padding:6px 10px;position:sticky;right:0;background:white">'+(l.ok
+            ? (encontrarColaboradorExistente(l.dados)
+                ? '<span style="color:#92400E;font-weight:500" title="Já existe um colaborador com este nome/CPF cadastrado">⚠ já cadastrado</span>'
+                : (l.lojasNovas && l.lojasNovas.length
+                    ? '<span style="color:#1E40AF;font-weight:500" title="Loja(s) nova(s) serão criadas: '+l.lojasNovas.join(', ')+'">✓ OK · loja nova</span>'
+                    : '<span style="color:#16A34A;font-weight:500">✓ OK</span>'))
+            : '<span style="color:#DC2626" title="'+l.erros.join('; ')+'">✗ '+l.erros.join(', ')+'</span>')
+        + '</td></tr>').join('')
+    + '</tbody></table></div>';
+  document.getElementById('importmassa-preview').innerHTML = html;
+  document.getElementById('importmassa-btn-confirmar').disabled = importMassaLinhas.filter(l=>l.ok).length === 0;
+}
+
+// Verifica se um colaborador já existe no sistema (por CPF, ou por nome+celular
+// quando não há CPF) — usado pra avisar sobre repetidos na importação em massa
+function encontrarColaboradorExistente(dados){
+  const cpfNovo = (dados.cpf||'').replace(/\D/g,'');
+  if(cpfNovo){
+    const porCpf = admList.find(a => a.cpf && a.cpf.replace(/\D/g,'') === cpfNovo);
+    if(porCpf) return porCpf;
+  }
+  const nomeNovo = (dados.nome||'').trim().toLowerCase();
+  const celularNovo = (dados.celular||'').replace(/\D/g,'');
+  if(nomeNovo && celularNovo){
+    const porNomeCelular = admList.find(a =>
+      (a.nome||'').trim().toLowerCase() === nomeNovo && a.celular && a.celular.replace(/\D/g,'') === celularNovo);
+    if(porNomeCelular) return porNomeCelular;
+  }
+  return null;
+}
+
+function confirmarImportacaoMassa(){
+  let validas = importMassaLinhas.filter(l=>l.ok);
+  if(validas.length === 0) return;
+
+  // Detecta colaboradores que já existem no sistema (por CPF, ou nome+celular)
+  const duplicados = validas.filter(l => encontrarColaboradorExistente(l.dados));
+  if(duplicados.length > 0){
+    const lista = duplicados.map(l => '• '+l.dados.nome+(l.dados.cpf?' — CPF '+l.dados.cpf:'')).join('\n');
+    const incluirTodos = confirm(
+      'Encontrei '+duplicados.length+' colaborador(es) que já parecem estar cadastrados no sistema:\n\n'+lista+
+      '\n\nClique OK para importar TODOS mesmo assim (inclusive os repetidos, criando um segundo cadastro).\n'+
+      'Clique Cancelar para pular os repetidos e importar só os colaboradores novos.'
+    );
+    if(!incluirTodos){
+      validas = validas.filter(l => !duplicados.includes(l));
+      if(validas.length === 0){ alert('Todos os colaboradores da planilha já existem no sistema — nada foi importado.'); return; }
+    }
+  }
+
+  if(!confirm('Importar '+validas.length+' colaborador(es) como funcionários ativos?')) return;
+
+  const colors = ['av-b','av-g','av-a','av-gr','av-p'];
+  const lojasCriadas = new Set();
+  const usuarioResponsavel = nomeUsuarioParaRegistro();
+  validas.forEach((l, i) => {
+    const d = l.dados;
+    if(!d.nome) d.nome = 'Colaborador Importado';
+    const initials = d.nome.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+    const color = colors[(admList.length+i) % colors.length];
+    const proto = 'ADM-2025-' + (String(admList.length+i+1).padStart(4,'0'));
+    const unid = l.unidadeNome ? garantirUnidade(l.unidadeNome) : null;
+    const lojaAtual = l.lojaAtualNome ? garantirUnidade(l.lojaAtualNome) : unid;
+    if(l.lojasNovas) l.lojasNovas.forEach(n=>lojasCriadas.add(n));
+    const registro = Object.assign({
+      id: Date.now()+i, initials, color, proto,
+      foto: '', documentos: {}, coluna: 4, data: new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),
+      unidade: unid?.nome || l.unidadeNome,
+      dataAdmissaoOficial: d.dataAdmissao,
+      lojaRegistroId: unid?.id, lojaAtualId: lojaAtual?.id,
+      statusEmprego: 'ativo',
+      criadoPor: usuarioResponsavel, criadoEm: new Date().toISOString(),
+      ultimaEdicaoPor: usuarioResponsavel, ultimaEdicaoEm: new Date().toISOString(),
+      historicoTransferencias: [{ unidadeId: lojaAtual?.id, unidadeNome: lojaAtual?.nome, data: d.dataAdmissao, motivo: 'Admissão (importação em massa)' }],
+    }, d);
+    admList.push(registro);
+  });
+
+  if(lojasCriadas.size && typeof renderUnidades === 'function') renderUnidades();
+  saveAdmList();
+  renderKanban();
+  updateMetrics();
+  renderTabelaFuncionarios();
+  fecharImportacaoMassa();
+  const msgLojas = lojasCriadas.size ? '\n\nLoja(s) nova(s) cadastrada(s) automaticamente: '+Array.from(lojasCriadas).join(', ') : '';
+  setTimeout(()=>{ alert('✅ '+validas.length+' colaborador(es) importado(s) com sucesso!'+msgLojas); }, 200);
+}
+
+// Abre o painel para IMPORTAR um colaborador que já está admitido de fato
+// (útil na migração para este sistema novo) — pula direto para a confirmação
+// de data de admissão + loja, sem passar pelas etapas do Kanban
+function abrirImportacaoFuncionario(){
+  openModal();
+  modoImportacaoDireta = true;
+  document.querySelector('.modal-title').textContent = 'Importar colaborador já admitido';
+  document.querySelector('.modal-sub').textContent = 'Preencha os dados — ao concluir, você confirma a data de admissão e a loja, e ele já entra direto como funcionário ativo, sem passar pelo funil de admissão.';
+}
+
+// Reabre o painel de admissão já preenchido com os dados do lançamento, para edição
+function editarCard(id){
+  const a = admList.find(x=>x.id==id);
+  if(!a) return;
+  openModal(); // abre limpo e restaura a estrutura do formulário
+  editandoAdmId = id;
+  document.querySelector('.modal-title').textContent = 'Editar admissão';
+  const btnMnx = document.getElementById('mnx');
+  if(btnMnx){ btnMnx.innerHTML = '<i class="ti ti-device-floppy"></i> Salvar atualização'; btnMnx.style.background = '#16A34A'; btnMnx.style.borderColor = '#16A34A'; btnMnx.onclick = finalAdm; }
+  if(document.getElementById('f-nome')) document.getElementById('f-nome').value = a.nome || '';
+  if(document.getElementById('f-celular')) document.getElementById('f-celular').value = a.celular || '';
+  if(document.getElementById('f-cargo')) document.getElementById('f-cargo').value = a.cargo || '';
+  // Se o colaborador já foi admitido de fato, a Unidade/Loja atual oficiais são
+  // lojaRegistroId/lojaAtualId (podem ter mudado por transferência) — não os
+  // valores antigos do formulário de quando ele ainda era só um lançamento.
+  const unidRegistroReal = unidades.find(u=>u.id==a.lojaRegistroId)?.nome;
+  const lojaAtualReal = unidades.find(u=>u.id==a.lojaAtualId)?.nome;
+  if(document.getElementById('f-unidade')) document.getElementById('f-unidade').value = unidRegistroReal || a.unidade || '';
+  const setVal = (id,v) => { const el=document.getElementById(id); if(el) el.value = v || ''; };
+  setVal('f-cpf', a.cpf);
+  setVal('f-rg', a.rg);
+  setVal('f-nasc', a.nascimento);
+  setVal('f-sexo', a.sexo);
+  setVal('f-civil', a.estadoCivil);
+  setVal('f-instrucao', a.instrucao);
+  setVal('f-email', a.email);
+  setVal('f-endereco', a.endereco);
+  popularLojaAtualWizard();
+  setVal('f-lojaatual', lojaAtualReal || a.lojaAtualPreferida);
+  setVal('f-dataadmissao', a.dataAdmissaoOficial || a.dataAdmissao);
+  setVal('f-salario', a.salario);
+  setVal('f-jornada', a.jornada);
+  setVal('f-horario', a.horario);
+  setVal('f-banco', a.banco);
+  setVal('f-agencia', a.agencia);
+  setVal('f-conta', a.conta);
+  setVal('pix-tipo', a.pixTipo);
+  setVal('pix-chave', a.pixChave);
+  if(a.tipoContrato){
+    document.querySelectorAll('#rg-contrato .ropt').forEach(o=>{
+      o.classList.toggle('sel', o.textContent.trim() === a.tipoContrato);
+    });
+  }
+  // restaura a foto
+  if(a.foto){
+    fotoData = a.foto;
+    document.getElementById('fimg').src = fotoData;
+    document.getElementById('fimg').style.display='block';
+    document.getElementById('fph').style.display='none';
+    document.getElementById('fbox').classList.add('filled');
+    document.getElementById('fbtn-rm').style.display='inline-flex';
+    document.getElementById('foto-ok').classList.add('show');
+  }
+  // restaura os documentos já anexados
+  if(a.documentos){
+    Object.keys(a.documentos).forEach(key=>{
+      const doc = a.documentos[key];
+      if(!doc) return;
+      docAnexos[key] = doc;
+      const fn = document.getElementById('docfn-'+key);
+      if(fn) fn.textContent = doc.nome || '';
+      const tag = document.getElementById('doctag-'+key);
+      if(tag){ tag.textContent='Recebido'; tag.classList.remove('dt-pend','dt-wait'); tag.classList.add('dt-ok'); }
+      const btn = document.getElementById('docbtn-'+key);
+      if(btn) btn.style.display='none';
+      const rm = document.getElementById('docrm-'+key);
+      if(rm) rm.style.display='flex';
+    });
+  }
+  gerarLinkPortal();
+}
+
+// Popula o select "Loja atual" do formulário com as unidades ativas (reflete
+// inclusive lojas criadas na hora, via importação em massa ou cadastro manual)
+function popularLojaAtualWizard(){
+  const sel = document.getElementById('f-lojaatual');
+  if(!sel) return;
+  const valorAtual = sel.value;
+  sel.innerHTML = '<option value="">-- Selecione --</option>' +
+    unidades.filter(u=>u.status==='Ativa').map(u=>'<option>'+u.nome+'</option>').join('');
+  if(valorAtual) sel.value = valorAtual;
+}
+// Ao escolher a Unidade, já preenche a Loja atual com a mesma (pode ajustar depois)
+function sincronizarLojaAtualWizard(){
+  const un = document.getElementById('f-unidade');
+  const la = document.getElementById('f-lojaatual');
+  if(un && la) la.value = un.value;
+}
+
+// ===== IDENTIFICAÇÃO DE QUEM ESTÁ USANDO O SISTEMA =====
+// Cada computador/navegador guarda o próprio nome (localStorage). Usado para
+// registrar quem criou/editou cada lançamento — assim dá pra saber o que cada
+// pessoa da equipe lançou, mesmo compartilhando o mesmo sistema.
+let usuarioAtual = localStorage.getItem('usuarioAtualNome') || '';
+
+function atualizarNomeUsuarioNaTela(){
+  const el = document.getElementById('sb-nome-usuario');
+  if(el) el.textContent = usuarioAtual || 'Responsável RH';
+}
+
+function definirUsuarioAtual(){
+  const nome = prompt('Quem está usando o sistema neste computador?\n\n(Isso fica salvo só neste navegador e é usado para identificar quem criou ou editou cada lançamento.)', usuarioAtual || '');
+  if(!nome) return; // cancelou, ou o navegador não suporta prompt()
+  usuarioAtual = nome.trim();
+  try{ localStorage.setItem('usuarioAtualNome', usuarioAtual); }catch(e){}
+  atualizarNomeUsuarioNaTela();
+}
+
+// Retorna o nome do usuário atual — se ainda não foi identificado, pergunta
+// na hora (só na primeira vez que alguém salva algo neste computador)
+function nomeUsuarioParaRegistro(){
+  if(!usuarioAtual){ definirUsuarioAtual(); }
+  return usuarioAtual || 'Não identificado';
+}
+
+atualizarNomeUsuarioNaTela();
 
 function excluirCard(id){
   const a = admList.find(x=>x.id==id);
@@ -2802,7 +3958,8 @@ function excluirCard(id){
     dbRH.ref('candidatos/'+a.chaveFirebase).remove();
     dbRH.ref('documentos_imagens/'+a.chaveFirebase).remove();
   }
-  admList = admList.filter(x=>x.id!==id);
+  admList = admList.filter(x=>x.id!=id);
+  removerAnexosLocal(id);
   if(!a.origemFirebase) saveAdmList();
   renderKanban();
   updateMetrics();
@@ -2820,8 +3977,16 @@ function renderTabelaFuncionarios(){
 
   const busca = (document.getElementById('func-busca')?.value || '').toLowerCase();
   const filtroStatus = document.getElementById('func-filtro-status')?.value || '';
+  const selFiltroLoja = document.getElementById('func-filtro-loja');
+  if(selFiltroLoja){
+    const valorAtual = selFiltroLoja.value;
+    selFiltroLoja.innerHTML = '<option value="">Todas as lojas</option>' +
+      unidades.filter(u=>u.status==='Ativa').map(u=>'<option value="'+u.id+'">'+u.nome+'</option>').join('');
+    if(valorAtual && unidades.some(u=>String(u.id)===valorAtual)) selFiltroLoja.value = valorAtual;
+  }
+  const filtroLoja = selFiltroLoja?.value || '';
 
-  let funcionarios = admList.filter(a => a.coluna === 4);
+  let funcionarios = admList.filter(a => a.coluna === 4 && a.statusEmprego === 'ativo');
 
   // Métricas de turnover (últimos 12 meses)
   const hoje = new Date();
@@ -2849,6 +4014,10 @@ function renderTabelaFuncionarios(){
   if(filtroStatus){
     funcionarios = funcionarios.filter(a => (a.statusEmprego||'ativo') === filtroStatus);
   }
+  if(filtroLoja){
+    funcionarios = funcionarios.filter(a => String(a.lojaAtualId) === filtroLoja);
+  }
+  funcionarios = funcionarios.slice().sort((a,b) => (a.nome||'').localeCompare((b.nome||''), 'pt-BR', {sensitivity:'base'}));
 
   if(funcionarios.length === 0){
     tbody.innerHTML = '<div style="padding:40px;text-align:center;color:#9CA3AF"><i class="ti ti-users" style="font-size:36px;display:block;margin-bottom:10px;opacity:.4"></i><div style="font-size:14px;font-weight:500">Nenhum funcionário encontrado</div></div>';
@@ -2876,18 +4045,41 @@ function renderTabelaFuncionarios(){
       ? '<button onclick="abrirModalDesligamento(\''+a.id+'\')" title="Registrar desligamento" style="background:#FEF2F2;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer"><i class="ti ti-door-exit" style="font-size:13px;color:#DC2626"></i></button>'
       : '<button onclick="abrirFichaFunc(\''+a.id+'\')" title="Ver detalhes do desligamento" style="background:#F9FAFB;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer"><i class="ti ti-file-info" style="font-size:13px;color:#6B7280"></i></button>';
 
+    const excluirBtn = '<button onclick="excluirFuncionario(\''+a.id+'\')" title="Excluir colaborador" style="background:#FEF2F2;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer"><i class="ti ti-trash" style="font-size:13px;color:#DC2626"></i></button>';
+
     const row = document.createElement('div');
     row.className = 'tbl-row';
-    row.style.gridTemplateColumns = '2.2fr 1.2fr 1.2fr 1fr 1fr 130px';
+    row.style.gridTemplateColumns = '2.2fr 1.2fr 1.2fr 1fr 1fr 160px';
     row.innerHTML =
       '<div style="display:flex;align-items:center;gap:10px;opacity:'+(desligado?'.6':'1')+'">'+av+'<div><div style="font-size:13px;font-weight:500">'+a.nome+'</div><div style="font-size:11px;color:#9CA3AF">'+a.proto+'</div></div></div>'
       + '<div style="font-size:12px;color:#374151">'+(lojaAtual?.nome.replace(' Ltda','').replace(' Eireli - Epp','')||'—')+'</div>'
       + '<div style="font-size:12px;color:#9CA3AF">'+(lojaRegistro?.nome.replace(' Ltda','').replace(' Eireli - Epp','')||'—')+'</div>'
       + '<div style="font-size:12px;color:#6B7280">'+(a.dataAdmissaoOficial ? new Date(a.dataAdmissaoOficial+'T00:00').toLocaleDateString('pt-BR') : '—')+'</div>'
       + '<div>'+statusPill+'</div>'
-      + '<div style="display:flex;gap:4px"><button onclick="abrirFichaFunc(\''+a.id+'\')" title="Ficha do colaborador" style="background:#EFF6FF;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer"><i class="ti ti-eye" style="font-size:13px;color:var(--blue)"></i></button>'+contratoBtn+transferirBtn+desligarBtn+'</div>';
+      + '<div style="display:flex;gap:4px"><button onclick="abrirFichaFunc(\''+a.id+'\')" title="Ficha do colaborador" style="background:#EFF6FF;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer"><i class="ti ti-eye" style="font-size:13px;color:var(--blue)"></i></button><button onclick="editarCard(\''+a.id+'\')" title="Editar e anexar documentos" style="background:#F3F4F6;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer"><i class="ti ti-pencil" style="font-size:13px;color:#374151"></i></button>'+contratoBtn+transferirBtn+desligarBtn+excluirBtn+'</div>';
     return row.outerHTML;
   }).join('');
+}
+
+// Exclui definitivamente um colaborador (registro completo, some de Funcionários e do Kanban)
+function excluirFuncionario(id){
+  const a = admList.find(x=>x.id==id);
+  if(!a) return;
+  if(!confirm('Excluir definitivamente '+a.nome+'?\n\nIsso remove todo o cadastro dele do sistema — dados, documentos e contrato. Esta ação não pode ser desfeita.')) return;
+
+  admList = admList.filter(x=>x.id!=id);
+  removerAnexosLocal(id);
+
+  if(a.origemFirebase){
+    dbRH.ref('candidatos/'+a.chaveFirebase).remove();
+    dbRH.ref('documentos_imagens/'+a.chaveFirebase).remove();
+  } else {
+    saveAdmList();
+  }
+
+  renderKanban();
+  updateMetrics();
+  renderTabelaFuncionarios();
 }
 
 // Abre o contrato assinado em nova aba (a partir do registro do funcionário admitido)
@@ -2945,7 +4137,17 @@ function confirmarTransferencia(){
   const lojaAnterior = unidades.find(u=>u.id==a.lojaAtualId);
   const lojaNova = unidades.find(u=>u.id==novaLojaId);
 
-  if(!confirm('Transferir '+a.nome+' de "'+(lojaAnterior?.nome||'—')+'" para "'+(lojaNova?.nome||'—')+'"?')) return;
+  const lojaRegistro = unidades.find(u=>u.id==a.lojaRegistroId);
+  const respRegistro = (lojaRegistro?.resp||'').trim();
+  const respNova = (lojaNova?.resp||'').trim();
+  let avisoResp = '';
+  if(respRegistro && respNova && respRegistro.toLowerCase() === respNova.toLowerCase()){
+    avisoResp = '\n\n⚠️ O responsável legal da nova unidade é o MESMO da loja de registro ('+respNova+'). Não esqueça de comunicar a contabilidade sobre esta transferência.';
+  } else if(respNova || respRegistro){
+    avisoResp = '\n\nℹ️ O responsável legal é DIFERENTE do responsável da loja de registro'+(respRegistro && respNova ? ' (registro: '+respRegistro+', nova loja: '+respNova+')' : respNova ? ' ('+respNova+')' : '')+'.';
+  }
+
+  if(!confirm('Transferir '+a.nome+' de "'+(lojaAnterior?.nome||'—')+'" para "'+(lojaNova?.nome||'—')+'"?'+avisoResp+'\n\nConfirma a transferência?')) return;
 
   a.lojaAtualId = novaLojaId;
   if(!a.historicoTransferencias) a.historicoTransferencias = [];
@@ -3112,6 +4314,163 @@ function salvarHistoricoFirebase(a){
   }
 }
 
+// ── Aba Dados da admissão ──────────────────────────────────
+const DOC_LABELS = {rg:'RG / CNH', cpf:'CPF', ctps:'Carteira de trabalho (CTPS)', endereco:'Comprovante de endereço', aso:'ASO – Atestado de saúde ocupacional', bancarios:'Dados bancários', pisnit:'PIS / NIT', fichareg:'Ficha de registro (documento físico)'};
+function campoInfoFunc(label, valor){
+  return '<div><div style="font-size:11px;color:#9CA3AF;margin-bottom:3px">'+label+'</div><div style="font-size:13px;color:#111827;font-weight:500">'+(valor && String(valor).trim() ? valor : '—')+'</div></div>';
+}
+function renderDadosAdmissaoFunc(a){
+  const av = a.foto
+    ? '<img src="'+a.foto+'" style="width:72px;height:72px;object-fit:cover;border-radius:12px"/>'
+    : '<div class="kav '+(a.color||'av-b')+'" style="width:72px;height:72px;font-size:22px;border-radius:12px;display:flex;align-items:center;justify-content:center">'+a.initials+'</div>';
+
+  let html = '<div style="display:flex;gap:16px;align-items:center;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #F3F4F6">'
+    + av
+    + '<div><div style="font-size:16px;font-weight:600;color:#111827">'+a.nome+'</div>'
+    + '<div style="font-size:12px;color:#6B7280;margin-top:2px">Protocolo: '+(a.proto||'—')+' · Cadastrado(a) em '+(a.data||'—')+'</div>'
+    + (a.criadoPor || a.ultimaEdicaoPor
+        ? '<div style="font-size:11px;color:#9CA3AF;margin-top:3px">'
+          + (a.criadoPor ? 'Lançado por <strong>'+a.criadoPor+'</strong>' : '')
+          + (a.ultimaEdicaoPor && a.ultimaEdicaoPor !== a.criadoPor ? (a.criadoPor?' · ':'')+'Última edição por <strong>'+a.ultimaEdicaoPor+'</strong>' : '')
+          + '</div>'
+        : '')
+    + '</div>'
+    + '</div>';
+
+  html += '<div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:10px">Identificação</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px">'
+    + campoInfoFunc('Nome completo', a.nome)
+    + campoInfoFunc('CPF', a.cpf)
+    + campoInfoFunc('RG', a.rg)
+    + campoInfoFunc('Data de nascimento', a.nascimento)
+    + campoInfoFunc('Sexo', a.sexo)
+    + campoInfoFunc('Estado civil', a.estadoCivil)
+    + campoInfoFunc('Grau de instrução', a.instrucao)
+    + campoInfoFunc('Celular', a.celular)
+    + campoInfoFunc('E-mail', a.email)
+    + campoInfoFunc('Endereço completo', a.endereco)
+    + '</div>';
+
+  html += '<div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:10px">Vínculo e cargo</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px">'
+    + campoInfoFunc('Unidade', a.unidade)
+    + campoInfoFunc('Loja atual', unidades.find(u=>u.id==a.lojaAtualId)?.nome || a.lojaAtualPreferida)
+    + campoInfoFunc('Cargo', a.cargo)
+    + campoInfoFunc('Data de admissão', a.dataAdmissao)
+    + campoInfoFunc('Salário base', a.salario ? 'R$ '+a.salario : '')
+    + campoInfoFunc('Jornada de trabalho', a.jornada)
+    + campoInfoFunc('Horário', a.horario)
+    + campoInfoFunc('Tipo de contrato', a.tipoContrato)
+    + '</div>';
+
+  html += '<div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:10px">Dados bancários / PIX</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px">'
+    + campoInfoFunc('Banco', a.banco)
+    + campoInfoFunc('Agência', a.agencia)
+    + campoInfoFunc('Conta corrente', a.conta)
+    + campoInfoFunc('Tipo de chave PIX', a.pixTipo)
+    + campoInfoFunc('Chave PIX', a.pixChave)
+    + '</div>';
+
+  html += '<div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:10px">Contrato</div>'
+    + (a.contratoAnexado
+      ? '<div class="doc-row" style="margin-bottom:20px"><i class="ti ti-file-check" style="color:#16A34A"></i><div class="doc-name">Contrato assinado</div><div class="doc-file-name">'+(a.contratoNomeArquivo||'')+'</div><a href="'+a.contratoDados+'" download="'+(a.contratoNomeArquivo||'contrato')+'" target="_blank" class="doc-attach-btn"><i class="ti ti-download"></i>Baixar</a></div>'
+      : '<div style="text-align:center;padding:18px;color:#9CA3AF;font-size:13px;margin-bottom:20px"><i class="ti ti-file-upload" style="font-size:20px;display:block;margin-bottom:6px;opacity:.4"></i>Nenhum contrato assinado anexado ainda</div>');
+
+  html += '<div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:10px">Documentos anexados</div>';
+  const docs = a.documentos || {};
+  const chaves = Object.keys(DOC_LABELS);
+  const anexados = chaves.filter(k=>docs[k]);
+  if(anexados.length === 0){
+    html += '<div style="text-align:center;padding:24px;color:#9CA3AF;font-size:13px"><i class="ti ti-file-off" style="font-size:22px;display:block;margin-bottom:6px;opacity:.4"></i>Nenhum documento anexado ainda</div>';
+  } else {
+    html += '<div class="doc-list">' + anexados.map(k=>{
+      const d = docs[k];
+      return '<div class="doc-row"><i class="ti ti-file-check" style="color:#16A34A"></i><div class="doc-name">'+DOC_LABELS[k]+'</div><div class="doc-file-name">'+(d.nome||'')+'</div><a href="'+d.dados+'" download="'+(d.nome||k)+'" target="_blank" class="doc-attach-btn"><i class="ti ti-download"></i>Baixar</a></div>';
+    }).join('') + '</div>';
+  }
+  return html;
+}
+function linhaFichaPDF(label, valor){
+  return '<div class="campo"><div class="lbl">'+label+'</div><div class="val">'+(valor && String(valor).trim() ? valor : '—')+'</div></div>';
+}
+function exportarFichaColaboradorPDF(){
+  const a = admList.find(x=>x.id==funcIdAtual);
+  if(!a){ alert('Abra a ficha de um colaborador primeiro.'); return; }
+
+  const docs = a.documentos || {};
+  const chavesDocs = Object.keys(DOC_LABELS).filter(k=>k!=='fichareg' && docs[k]);
+  const listaDocs = chavesDocs.length === 0
+    ? '<div style="color:#9CA3AF;font-size:12px">Nenhum documento anexado no sistema</div>'
+    : chavesDocs.map(k=>'<div class="doc-item">✓ '+DOC_LABELS[k]+' — '+(docs[k].nome||'')+'</div>').join('');
+
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>Ficha de registro — ${a.nome}</title>
+  <style>
+    body{font-family:'Segoe UI',sans-serif;background:white;color:#111827;margin:0;padding:32px}
+    .header{background:#1A4B8C;color:white;padding:24px 28px;border-radius:12px;margin-bottom:24px}
+    .header h1{font-size:22px;margin:0 0 4px}
+    .header p{font-size:13px;opacity:.85;margin:0}
+    .section{margin-bottom:22px}
+    .section h2{font-size:13px;font-weight:600;color:#374151;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #E5E7EB;padding-bottom:6px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px}
+    .campo .lbl{font-size:10px;color:#9CA3AF;margin-bottom:2px}
+    .campo .val{font-size:13px;color:#111827;font-weight:500}
+    .doc-item{font-size:12px;color:#166534;margin-bottom:4px}
+    .footer{margin-top:32px;padding-top:16px;border-top:1px solid #E5E7EB;font-size:11px;color:#9CA3AF;text-align:center}
+    @media print{body{padding:16px}}
+  </style></head><body>
+  <div class="header">
+    <h1>Ficha de registro do colaborador</h1>
+    <p>${a.nome} · Protocolo ${a.proto||'—'} · Óticas Carol</p>
+  </div>
+  <div class="section"><h2>Identificação</h2><div class="grid">
+    ${linhaFichaPDF('Nome completo', a.nome)}
+    ${linhaFichaPDF('CPF', a.cpf)}
+    ${linhaFichaPDF('RG', a.rg)}
+    ${linhaFichaPDF('Data de nascimento', a.nascimento)}
+    ${linhaFichaPDF('Sexo', a.sexo)}
+    ${linhaFichaPDF('Estado civil', a.estadoCivil)}
+    ${linhaFichaPDF('Grau de instrução', a.instrucao)}
+    ${linhaFichaPDF('Celular', a.celular)}
+    ${linhaFichaPDF('E-mail', a.email)}
+    ${linhaFichaPDF('Endereço completo', a.endereco)}
+  </div></div>
+  <div class="section"><h2>Vínculo e cargo</h2><div class="grid">
+    ${linhaFichaPDF('Unidade', a.unidade)}
+    ${linhaFichaPDF('Loja atual', unidades.find(u=>u.id==a.lojaAtualId)?.nome || a.lojaAtualPreferida)}
+    ${linhaFichaPDF('Cargo', a.cargo)}
+    ${linhaFichaPDF('Data de admissão', a.dataAdmissaoOficial || a.dataAdmissao)}
+    ${linhaFichaPDF('Salário base', a.salario ? 'R$ '+a.salario : '')}
+    ${linhaFichaPDF('Jornada de trabalho', a.jornada)}
+    ${linhaFichaPDF('Horário', a.horario)}
+    ${linhaFichaPDF('Tipo de contrato', a.tipoContrato)}
+  </div></div>
+  <div class="section"><h2>Dados bancários / PIX</h2><div class="grid">
+    ${linhaFichaPDF('Banco', a.banco)}
+    ${linhaFichaPDF('Agência', a.agencia)}
+    ${linhaFichaPDF('Conta corrente', a.conta)}
+    ${linhaFichaPDF('Tipo de chave PIX', a.pixTipo)}
+    ${linhaFichaPDF('Chave PIX', a.pixChave)}
+  </div></div>
+  <div class="section"><h2>Contrato e documentos</h2>
+    <div class="doc-item" style="color:${a.contratoAnexado?'#166534':'#9CA3AF'}">${a.contratoAnexado ? '✓ Contrato assinado anexado no sistema ('+(a.contratoNomeArquivo||'')+')' : 'Sem contrato assinado anexado'}</div>
+    ${listaDocs}
+  </div>
+  <div class="footer">Gerado pelo Sistema RH · Óticas Carol · ${new Date().toLocaleDateString('pt-BR')}</div>
+  <script>window.onload=()=>{window.print();}<\/script>
+  </body></html>`;
+  const blob = new Blob([html],{type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  window.open(url,'_blank');
+}
+
+function editarFuncionario(){
+  if(!funcIdAtual) return;
+  const id = funcIdAtual;
+  fecharFichaFunc();
+  editarCard(id);
+}
+
 // ── Aba Resumo ──────────────────────────────────────────────
 function renderResumoFunc(a){
   const h = a.historico;
@@ -3213,26 +4572,27 @@ function renderFuncTab(idx, a){
   const body = document.getElementById('func-body');
   const h = a.historico;
 
-  if(idx === 0){ body.innerHTML = renderResumoFunc(a); return; }
+  if(idx === 0){ body.innerHTML = renderDadosAdmissaoFunc(a); return; }
+  if(idx === 1){ body.innerHTML = renderResumoFunc(a); return; }
 
-  if(idx === 1){
+  if(idx === 2){
     body.innerHTML = renderListaComForm('Falta/Ocorrência', 'faltas', [
       {id:'data', tipo:'date', label:'Data'},
       {id:'tipo', tipo:'select', label:'Tipo', opcoes:['Falta', 'Atraso', 'Saída antecipada', 'Atestado médico', 'Advertência']},
       {id:'obs', tipo:'text', label:'Observação'},
     ], h.faltas, '#DC2626');
   }
-  else if(idx === 2){
+  else if(idx === 3){
     body.innerHTML = renderFormCompras(h.compras);
   }
-  else if(idx === 3){
+  else if(idx === 4){
     body.innerHTML = renderListaComForm('Uniforme', 'uniformes', [
       {id:'data', tipo:'date', label:'Data'},
       {id:'item', tipo:'text', label:'Peça (ex: Camisa P)'},
       {id:'qtd', tipo:'text', label:'Quantidade'},
     ], h.uniformes, '#1A4B8C');
   }
-  else if(idx === 4){
+  else if(idx === 5){
     body.innerHTML = '<div style="background:#F9FAFB;border-radius:10px;padding:16px;margin-bottom:16px">'
       + '<div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:10px">+ Nova observação</div>'
       + '<textarea id="fn-observacoes-texto" placeholder="Digite aqui qualquer observação sobre o colaborador..." style="width:100%;border:1px solid #E5E7EB;border-radius:6px;padding:9px 11px;font-size:13px;min-height:70px;resize:vertical;font-family:inherit"></textarea>'
@@ -3381,7 +4741,12 @@ function goFeriasSubTab(tab, el){
 
 function calcularDadosFerias(a, hoje){
   const dtAdm = new Date(a.dataAdmissaoOficial + 'T00:00');
-  const fimAquisitivo = new Date(dtAdm); fimAquisitivo.setFullYear(fimAquisitivo.getFullYear() + 1);
+  // Se o período aquisitivo foi ajustado manualmente, usa essa data; senão,
+  // calcula automaticamente (admissão + 1 ano). O prazo limite para gozo
+  // é SEMPRE 1 ano depois do fim do período aquisitivo — recalculado sozinho.
+  const fimAquisitivo = a.fimAquisitivoManual
+    ? new Date(a.fimAquisitivoManual + 'T00:00')
+    : (() => { const d = new Date(dtAdm); d.setFullYear(d.getFullYear() + 1); return d; })();
   const fimConcessivo = new Date(fimAquisitivo); fimConcessivo.setFullYear(fimConcessivo.getFullYear() + 1);
   const mesesTrabalhados = (hoje - dtAdm) / (1000*60*60*24*30.44);
   const temDireito = hoje >= fimAquisitivo;
@@ -3430,20 +4795,36 @@ function renderCardFerias(l){
     ? '<span style="background:#EFF6FF;color:#1A4B8C;font-size:11px;padding:4px 10px;border-radius:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px"><i class="ti ti-calendar-check" style="font-size:12px"></i>'+MESES_NOMES[fp.mes-1]+'/'+fp.ano+'</span>'
     : '';
 
+  // O "gozo confirmado" é vinculado ao mês/ano programado — se um novo mês for
+  // escolhido depois, a confirmação anterior deixa de valer (fica pendente de novo)
+  const fg = l.a.feriasGozo;
+  const gozouEsseperiodo = fp?.mes && fg?.mes === fp.mes && fg?.ano === fp.ano;
+  const gozadoTag = gozouEsseperiodo
+    ? '<span style="background:#F0FDF4;color:#16A34A;font-size:11px;padding:4px 10px;border-radius:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px"><i class="ti ti-check" style="font-size:12px"></i>Férias gozadas</span>'
+    : '';
+
   return '<div style="border:1px solid #E5E7EB;border-radius:10px;padding:14px 16px;margin-bottom:10px">'
     + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">'
     + av
     + '<div style="flex:1;min-width:140px"><div style="font-size:13px;font-weight:600;color:#111827">'+l.a.nome+'</div>'
     + '<div style="font-size:11px;color:#9CA3AF">Admitido em '+l.dtAdm.toLocaleDateString('pt-BR')+'</div></div>'
     + programadoTag
+    + gozadoTag
     + '<span style="background:'+l.statusInfo.bg+';color:'+l.statusInfo.cor+';font-size:11px;padding:4px 10px;border-radius:12px;font-weight:500">'+l.statusInfo.label+'</span>'
     + '</div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;background:#F9FAFB;border-radius:8px;padding:10px 12px;font-size:12px;margin-bottom:10px">'
-    + '<div><div style="color:#9CA3AF;margin-bottom:2px">Período aquisitivo termina</div><div style="color:#111827;font-weight:500">'+l.fimAquisitivo.toLocaleDateString('pt-BR')+'</div></div>'
+    + '<div><div style="color:#9CA3AF;margin-bottom:2px;display:flex;align-items:center;gap:5px">Período aquisitivo termina<button onclick="abrirModalPeriodoAquisitivo(\''+l.a.id+'\')" title="Editar período aquisitivo" style="background:none;border:none;cursor:pointer;padding:0;display:flex;color:#9CA3AF"><i class="ti ti-pencil" style="font-size:12px"></i></button></div><div style="color:#111827;font-weight:500">'+l.fimAquisitivo.toLocaleDateString('pt-BR')+(l.a.fimAquisitivoManual?' <span style="color:#9CA3AF;font-weight:400;font-size:10px">(ajustado)</span>':'')+'</div></div>'
     + '<div><div style="color:#9CA3AF;margin-bottom:2px">Prazo limite para gozo</div><div style="color:#111827;font-weight:500">'+l.fimConcessivo.toLocaleDateString('pt-BR')+'</div></div>'
     + '<div><div style="color:#9CA3AF;margin-bottom:2px">💡 Sugestão de mês</div><div style="color:#1A4B8C;font-weight:600">'+l.sugestao+'</div></div>'
     + '</div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
     + '<button onclick="abrirModalProgramarFerias(\''+l.a.id+'\')" style="background:'+(fp?.mes?'#F0FDF4':'#EFF6FF')+';border:1px solid '+(fp?.mes?'#BBF7D0':'#BFDBFE')+';color:'+(fp?.mes?'#16A34A':'#1A4B8C')+';border-radius:7px;padding:7px 14px;font-size:12px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:6px"><i class="ti ti-calendar-event" style="font-size:13px"></i>'+(fp?.mes?'Alterar mês de gozo':'Escolher mês de gozo')+'</button>'
+    + (fp?.mes
+        ? (gozouEsseperiodo
+            ? '<button onclick="desmarcarGozoFerias(\''+l.a.id+'\')" style="background:white;border:1px solid #E5E7EB;color:#6B7280;border-radius:7px;padding:7px 14px;font-size:12px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:6px"><i class="ti ti-x" style="font-size:13px"></i>Desmarcar gozo</button>'
+            : '<button onclick="confirmarGozoFerias(\''+l.a.id+'\')" style="background:#16A34A;border:1px solid #16A34A;color:white;border-radius:7px;padding:7px 14px;font-size:12px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:6px"><i class="ti ti-check" style="font-size:13px"></i>Confirmar gozo das férias</button>')
+        : '')
+    + '</div>'
     + '</div>';
 }
 
@@ -3479,6 +4860,34 @@ function abrirModalProgramarFerias(id){
   document.getElementById('ov-fer-programar').classList.add('open');
 }
 
+// Confirma que o colaborador realmente gozou o período de férias já programado
+function confirmarGozoFerias(id){
+  const a = admList.find(x=>x.id==id);
+  if(!a || !a.feriasProgramadas?.mes) return;
+  const fp = a.feriasProgramadas;
+  if(!confirm('Confirmar que '+a.nome+' gozou as férias de '+MESES_NOMES[fp.mes-1]+'/'+fp.ano+'?')) return;
+  a.feriasGozo = { mes: fp.mes, ano: fp.ano, confirmadoEm: new Date().toISOString() };
+  if(a.origemFirebase){
+    dbRH.ref('candidatos/'+a.chaveFirebase+'/feriasGozo').set(a.feriasGozo);
+  } else {
+    saveAdmList();
+  }
+  renderPaginaFerias();
+}
+// Desfaz a confirmação de gozo (caso tenha sido marcada por engano)
+function desmarcarGozoFerias(id){
+  const a = admList.find(x=>x.id==id);
+  if(!a) return;
+  if(!confirm('Desmarcar a confirmação de gozo das férias de '+a.nome+'?')) return;
+  delete a.feriasGozo;
+  if(a.origemFirebase){
+    dbRH.ref('candidatos/'+a.chaveFirebase+'/feriasGozo').remove();
+  } else {
+    saveAdmList();
+  }
+  renderPaginaFerias();
+}
+
 function fecharModalProgramarFerias(){
   document.getElementById('ov-fer-programar').classList.remove('open');
   idFeriasAtual = null;
@@ -3496,11 +4905,73 @@ function confirmarProgramarFerias(){
 
   if(a.origemFirebase){
     dbRH.ref('candidatos/'+a.chaveFirebase+'/feriasProgramadas').set(a.feriasProgramadas);
+  } else {
+    saveAdmList();
   }
 
   renderPaginaFerias();
   fecharModalProgramarFerias();
   alert('✅ Férias de '+a.nome+' programadas para '+MESES_NOMES[mes-1]+'/'+ano+'.');
+}
+
+// ── Modal: editar período aquisitivo ──────────────────────────
+let idPeriodoAtual = null;
+
+function abrirModalPeriodoAquisitivo(id){
+  const a = admList.find(x=>x.id==id);
+  if(!a) return;
+  idPeriodoAtual = id;
+
+  const dados = calcularDadosFerias(a, new Date());
+  document.getElementById('fer-periodo-nome').textContent = a.nome;
+  document.getElementById('fer-periodo-data').value = dados.fimAquisitivo.toISOString().split('T')[0];
+  document.getElementById('fer-periodo-restaurar').style.display = a.fimAquisitivoManual ? 'inline-flex' : 'none';
+  atualizarPreviewPeriodo();
+  document.getElementById('ov-fer-periodo').classList.add('open');
+}
+
+function atualizarPreviewPeriodo(){
+  const val = document.getElementById('fer-periodo-data').value;
+  const preview = document.getElementById('fer-periodo-preview');
+  if(!val){ preview.textContent = '—'; return; }
+  const d = new Date(val+'T00:00');
+  d.setFullYear(d.getFullYear()+1);
+  preview.textContent = d.toLocaleDateString('pt-BR');
+}
+document.addEventListener('input', e => { if(e.target && e.target.id === 'fer-periodo-data') atualizarPreviewPeriodo(); });
+
+function fecharModalPeriodoAquisitivo(){
+  document.getElementById('ov-fer-periodo').classList.remove('open');
+  idPeriodoAtual = null;
+}
+
+function salvarPeriodoAquisitivo(){
+  const val = document.getElementById('fer-periodo-data').value;
+  if(!val){ alert('Informe a data.'); return; }
+  const a = admList.find(x=>x.id==idPeriodoAtual);
+  if(!a) return;
+  a.fimAquisitivoManual = val;
+  if(a.origemFirebase){
+    dbRH.ref('candidatos/'+a.chaveFirebase+'/fimAquisitivoManual').set(val);
+  } else {
+    saveAdmList();
+  }
+  renderPaginaFerias();
+  fecharModalPeriodoAquisitivo();
+}
+
+function restaurarPeriodoAutomatico(){
+  const a = admList.find(x=>x.id==idPeriodoAtual);
+  if(!a) return;
+  if(!confirm('Restaurar o cálculo automático do período aquisitivo de '+a.nome+' (admissão + 1 ano)?')) return;
+  delete a.fimAquisitivoManual;
+  if(a.origemFirebase){
+    dbRH.ref('candidatos/'+a.chaveFirebase+'/fimAquisitivoManual').remove();
+  } else {
+    saveAdmList();
+  }
+  renderPaginaFerias();
+  fecharModalPeriodoAquisitivo();
 }
 
 // ── Visão: por loja ──────────────────────────────────────────
@@ -3510,12 +4981,24 @@ function renderFeriasPorLoja(){
   const cont = document.getElementById('fer-por-loja');
 
   const lojasAtivas = unidades.filter(u=>u.status==='Ativa');
+
+  // Popula o filtro de lojas (mantendo a seleção atual, se ainda existir)
+  const selFiltro = document.getElementById('fer-loja-filtro');
+  if(selFiltro){
+    const valorAtual = selFiltro.value;
+    selFiltro.innerHTML = '<option value="">Todas as lojas</option>' +
+      lojasAtivas.map(u=>'<option value="'+u.id+'">'+u.nome+'</option>').join('');
+    if(valorAtual && lojasAtivas.some(u=>String(u.id)===valorAtual)) selFiltro.value = valorAtual;
+  }
+  const lojaFiltroId = selFiltro?.value || '';
+  const lojasParaMostrar = lojaFiltroId ? lojasAtivas.filter(u=>String(u.id)===lojaFiltroId) : lojasAtivas;
+
   if(admitidos.length === 0){
     cont.innerHTML = '<div class="section-card"><div style="padding:32px;text-align:center;color:#9CA3AF"><i class="ti ti-building-store" style="font-size:36px;display:block;margin-bottom:10px;opacity:.4"></i><div style="font-size:14px;font-weight:500">Nenhum colaborador com data de admissão registrada</div></div></div>';
     return;
   }
 
-  cont.innerHTML = lojasAtivas.map(u => {
+  cont.innerHTML = lojasParaMostrar.map(u => {
     const equipe = admitidos.filter(a => a.lojaAtualId == u.id);
     if(equipe.length === 0) return '';
     const linhas = equipe.map(a => calcularDadosFerias(a, hoje));
@@ -3523,7 +5006,7 @@ function renderFeriasPorLoja(){
       + '<div class="section-title"><i class="ti ti-building-store" style="color:var(--blue)"></i>'+u.nome+' <span style="font-size:11px;color:#9CA3AF;font-weight:400;margin-left:6px">'+equipe.length+' colaborador'+(equipe.length===1?'':'es')+'</span></div>'
       + linhas.map(l => renderCardFerias(l)).join('')
       + '</div>';
-  }).filter(Boolean).join('') || '<div class="section-card"><div style="padding:32px;text-align:center;color:#9CA3AF">Nenhum colaborador com férias a controlar nas lojas ativas</div></div>';
+  }).filter(Boolean).join('') || '<div class="section-card"><div style="padding:32px;text-align:center;color:#9CA3AF">Nenhum colaborador com férias a controlar '+(lojaFiltroId?'nessa loja':'nas lojas ativas')+'</div></div>';
 }
 
 // ── Visão: geral por mês (todas as lojas) ───────────────────
@@ -4855,7 +6338,19 @@ let unidades = [
   {id:7, nome:'Kale Ótica Ltda',              cnpj:'48.886.265/0001-65', resp:'', tel:'', end:'', email:'', status:'Ativa'},
   {id:8, nome:'Leib Ótica Eireli - Epp',     cnpj:'21.333.174/0001-31', resp:'', tel:'', end:'', email:'', status:'Ativa'},
 ];
-let nextUnidId = 9;
+// Restaura unidades salvas localmente (ex: lojas criadas via importação em massa),
+// para sobreviverem a fechar e reabrir o sistema mesmo sem Firebase disponível.
+(function restaurarUnidadesLocais(){
+  try{
+    const raw = localStorage.getItem('unidadesLocal');
+    const salvas = raw ? JSON.parse(raw) : null;
+    if(salvas && salvas.length) unidades = salvas;
+  }catch(e){}
+})();
+let nextUnidId = Math.max(8, ...unidades.map(u=>u.id)) + 1;
+function salvarUnidadesLocal(){
+  try{ localStorage.setItem('unidadesLocal', JSON.stringify(unidades)); }catch(e){}
+}
 let editandoId = null;
 let excluindoId = null;
 
@@ -5012,6 +6507,7 @@ function salvarUnidade(){
   } else {
     unidades.push({id: nextUnidId++, ...dados});
   }
+  salvarUnidadesLocal();
   renderUnidades();
   fecharModalUnidade();
 }
@@ -5027,6 +6523,7 @@ function fecharExcluir(){ document.getElementById('ov-excluir').classList.remove
 
 function confirmarExclusao(){
   unidades = unidades.filter(u=>u.id!==excluindoId);
+  salvarUnidadesLocal();
   renderUnidades();
   fecharExcluir();
 }
