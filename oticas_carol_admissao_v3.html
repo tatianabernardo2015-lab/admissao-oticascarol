@@ -2522,11 +2522,12 @@ function saveAdmList(){
   const manuais = admList
     .filter(a => !a.origemFirebase)
     .map(a => {
-      // Remove campos grandes (base64 de foto/contrato/documentos) do JSON para não sobrecarregar
-      // Esses campos são opcionais e podem ser perdidos sem impacto crítico — ficam salvos
-      // à parte, no localStorage, via salvarAnexosLocal()
-      const { foto, contratoDados, documentos, ...rest } = a;
-      return { ...rest, _temFoto: !!foto, _temContrato: !!contratoDados, _qtdDocumentos: documentos ? Object.keys(documentos).length : 0 };
+      // A foto já vem comprimida (poucos KB) — mantemos ela no Firebase pra
+      // sincronizar de verdade entre computadores. Contrato/documentos ainda
+      // são grandes demais (PDFs/fotos sem compressão), então esses continuam
+      // só localmente, via salvarAnexosLocal().
+      const { contratoDados, documentos, ...rest } = a;
+      return { ...rest, _temContrato: !!contratoDados, _qtdDocumentos: documentos ? Object.keys(documentos).length : 0 };
     });
   // Salva sempre localmente — garante que nada se perde ao fechar o navegador,
   // mesmo quando o Firebase está indisponível (ex: testando o arquivo localmente)
@@ -3081,17 +3082,37 @@ function resetDocsAnexos(){
   docAnexos={};
   DOCS_KEYS.forEach(removerDoc);
 }
+// Redimensiona e comprime a imagem antes de guardar — assim ela é pequena o
+// suficiente para sincronizar de verdade entre computadores diferentes (antes
+// ficava só salva localmente no navegador de quem tirou a foto)
+function comprimirImagem(dataUrl, tamanhoMax, qualidade, callback){
+  const img = new Image();
+  img.onload = () => {
+    let w = img.width, h = img.height;
+    if(w > h){ if(w > tamanhoMax){ h = Math.round(h * tamanhoMax/w); w = tamanhoMax; } }
+    else { if(h > tamanhoMax){ w = Math.round(w * tamanhoMax/h); h = tamanhoMax; } }
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+    callback(canvas.toDataURL('image/jpeg', qualidade));
+  };
+  img.onerror = () => callback(dataUrl); // se der erro, usa a original mesmo
+  img.src = dataUrl;
+}
+
 function loadFoto(input){
   if(!input.files||!input.files[0])return;
   const reader=new FileReader();
   reader.onload=e=>{
-    fotoData=e.target.result;
-    document.getElementById('fimg').src=fotoData;
-    document.getElementById('fimg').style.display='block';
-    document.getElementById('fph').style.display='none';
-    document.getElementById('fbox').classList.add('filled');
-    document.getElementById('fbtn-rm').style.display='inline-flex';
-    document.getElementById('foto-ok').classList.add('show');
+    comprimirImagem(e.target.result, 300, 0.75, (dataComprimida) => {
+      fotoData=dataComprimida;
+      document.getElementById('fimg').src=fotoData;
+      document.getElementById('fimg').style.display='block';
+      document.getElementById('fph').style.display='none';
+      document.getElementById('fbox').classList.add('filled');
+      document.getElementById('fbtn-rm').style.display='inline-flex';
+      document.getElementById('foto-ok').classList.add('show');
+    });
   };
   reader.readAsDataURL(input.files[0]);
 }
