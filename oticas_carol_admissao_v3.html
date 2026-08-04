@@ -300,7 +300,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
     <span style="font-size:11px;opacity:.55;font-weight:400;margin-left:4px">· Departamento Pessoal</span>
   </div>
   <div class="tright">
-    <i class="ti ti-bell" style="font-size:20px;cursor:pointer"></i>
+    <i id="sino-notif" class="ti ti-bell" style="font-size:20px;cursor:pointer" onclick="nav('terminos')" title="Ver términos de contrato próximos"></i>
     <i class="ti ti-help-circle" style="font-size:20px;cursor:pointer"></i>
     <div class="tavatar">RH</div>
   </div>
@@ -750,10 +750,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
           <button class="btn-out" onclick="exportarTerminosPDF()"><i class="ti ti-file-download"></i>Extrair em PDF</button>
         </div>
       </div>
-      <div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px">
+      <div class="metrics" style="grid-template-columns:repeat(4,1fr);margin-bottom:18px">
         <div class="mcard"><div class="mcard-lbl">Vencidos</div><div class="mcard-val" id="term-vencidos" style="color:#DC2626">0</div></div>
         <div class="mcard"><div class="mcard-lbl">Próximos 15 dias</div><div class="mcard-val" id="term-proximos" style="color:#92400E">0</div></div>
-        <div class="mcard"><div class="mcard-lbl">Colaboradores em experiência</div><div class="mcard-val" id="term-total" style="color:#1A4B8C">0</div></div>
+        <div class="mcard"><div class="mcard-lbl">Em experiência</div><div class="mcard-val" id="term-total" style="color:#1A4B8C">0</div></div>
+        <div class="mcard"><div class="mcard-lbl">Efetivados</div><div class="mcard-val" id="term-efetivados" style="color:#16A34A">0</div></div>
       </div>
       <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:14px 18px;margin-bottom:18px;font-size:13px;color:#1E40AF;display:flex;align-items:flex-start;gap:10px">
         <i class="ti ti-info-circle" style="font-size:17px;flex-shrink:0;margin-top:1px"></i>
@@ -2214,7 +2215,8 @@ function renderPaginaTerminos(){
 
   document.getElementById('term-vencidos').textContent = vencidos.length;
   document.getElementById('term-proximos').textContent = proximos.length;
-  document.getElementById('term-total').textContent = colaboradores.length;
+  document.getElementById('term-total').textContent = colaboradores.filter(c => c.dias90 >= 0).length;
+  document.getElementById('term-efetivados').textContent = colaboradores.filter(c => c.dias90 < 0).length;
 
   let filtrados = colaboradores;
   if(filtro === 'vencidos') filtrados = vencidos;
@@ -2623,7 +2625,55 @@ if(dbRH){
 loadAdmList(() => {
   renderKanban();
   updateMetrics();
+  verificarAvisosTermino();
 });
+
+// Checa quem está a até 5 dias de um término de contrato (1º ou 2º) e avisa —
+// roda ao carregar o sistema. Só avisa uma vez por dia por pessoa (evita ficar
+// repetindo o mesmo aviso toda vez que a página é recarregada no mesmo dia).
+function verificarAvisosTermino(){
+  if(typeof colaboradoresComTermino !== 'function') return;
+  const hojeStr = new Date().toISOString().split('T')[0];
+  const jaAvisadoHoje = (() => { try{ return localStorage.getItem('avisoTerminoData') === hojeStr; }catch(e){ return false; } })();
+  if(jaAvisadoHoje) { atualizarBadgeAvisos(); return; }
+
+  const urgentes = colaboradoresComTermino().filter(c =>
+    (c.dias45>=0 && c.dias45<=5) || (c.dias90>=0 && c.dias90<=5)
+  );
+  atualizarBadgeAvisos(urgentes.length);
+
+  if(urgentes.length > 0){
+    const linhas = urgentes.map(c => {
+      const marco = (c.dias45>=0 && c.dias45<=5) ? '1º término em '+c.dias45+' dia(s)' : '2º término em '+c.dias90+' dia(s)';
+      return '• '+c.a.nome+' — '+marco;
+    }).join('\n');
+    setTimeout(()=>{
+      alert('⏰ Atenção — término de contrato chegando (5 dias ou menos):\n\n'+linhas);
+    }, 600);
+    try{ localStorage.setItem('avisoTerminoData', hojeStr); }catch(e){}
+  }
+}
+function atualizarBadgeAvisos(qtdForcada){
+  const bell = document.getElementById('sino-notif');
+  if(!bell) return;
+  let qtd = qtdForcada;
+  if(qtd === undefined && typeof colaboradoresComTermino === 'function'){
+    qtd = colaboradoresComTermino().filter(c => (c.dias45>=0 && c.dias45<=5) || (c.dias90>=0 && c.dias90<=5)).length;
+  }
+  let badge = document.getElementById('sino-badge');
+  if(qtd > 0){
+    if(!badge){
+      badge = document.createElement('span');
+      badge.id = 'sino-badge';
+      badge.style.cssText = 'position:absolute;top:-4px;right:-4px;background:#DC2626;color:white;font-size:9px;font-weight:700;border-radius:8px;min-width:14px;height:14px;display:flex;align-items:center;justify-content:center;padding:0 3px';
+      bell.parentElement.style.position = 'relative';
+      bell.parentElement.appendChild(badge);
+    }
+    badge.textContent = qtd;
+  } else if(badge){
+    badge.remove();
+  }
+}
 
 // Mapa de status do Firebase -> coluna do Kanban
 const STATUS_PARA_COLUNA = {
@@ -6459,6 +6509,26 @@ let unidades = [
 let nextUnidId = Math.max(8, ...unidades.map(u=>u.id)) + 1;
 function salvarUnidadesLocal(){
   try{ localStorage.setItem('unidadesLocal', JSON.stringify(unidades)); }catch(e){}
+  // Sincroniza pela nuvem — sem isso, lojas criadas num computador nunca
+  // apareciam em outro (ficavam presas só no localStorage daquele navegador)
+  if(dbRH) dbRH.ref('unidades').set(unidades);
+}
+// Quando o Firebase está disponível, ele é a fonte de verdade das unidades —
+// escuta em tempo real, assim uma loja criada num computador aparece nos outros.
+if(dbRH){
+  dbRH.ref('unidades').on('value', snap => {
+    const dados = snap.val();
+    if(dados && Array.isArray(dados) && dados.length){
+      unidades = dados;
+      nextUnidId = Math.max(8, ...unidades.map(u=>u.id)) + 1;
+      try{ localStorage.setItem('unidadesLocal', JSON.stringify(unidades)); }catch(e){}
+      if(typeof renderUnidades === 'function' && document.getElementById('pg-unidades')?.classList.contains('show')) renderUnidades();
+      if(typeof popularLojaAtualWizard === 'function') popularLojaAtualWizard();
+    } else if(dados === null) {
+      // Ainda não existe nada salvo no Firebase — envia a lista atual como ponto de partida
+      dbRH.ref('unidades').set(unidades);
+    }
+  });
 }
 let editandoId = null;
 let excluindoId = null;
