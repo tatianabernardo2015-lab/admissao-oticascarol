@@ -612,15 +612,20 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// Salva a ficha completa do candidato no Firebase
+// Salva a ficha completa do candidato no Firebase — dados + imagens dos documentos
 function salvarNoFirebase(dados){
   const chave = dados.proto.replace(/[^a-zA-Z0-9]/g, '_');
-  return db.ref('candidatos/' + chave).set({
-    ...dados,
-    documentos: dados.documentos || [],
-    enviadoEm: new Date().toISOString(),
-    status: 'aguardando_analise'
-  });
+  const chavesDocs = Object.keys(docsEnviados); // já vem ordenado (chaves numéricas)
+  const imagens = chavesDocs.map(k => ({ dados: docsEnviados[k].dados, mimeType: docsEnviados[k].mime }));
+  return Promise.all([
+    db.ref('candidatos/' + chave).set({
+      ...dados,
+      documentos: dados.documentos || [],
+      enviadoEm: new Date().toISOString(),
+      status: 'aguardando_analise'
+    }),
+    db.ref('documentos_imagens/' + chave).set(imagens),
+  ]);
 }
 
 // ── Estado global ──────────────────────────────────────────────
@@ -781,28 +786,69 @@ function atualizarBtnEtapa0(){
 }
 
 // ── Upload de documentos ──────────────────────────────────────
+// Redimensiona/comprime uma imagem antes de guardar (documentos ainda precisam
+// ficar legíveis, então usamos uma resolução maior que a foto de perfil)
+function comprimirImagemDoc(dataUrl, callback){
+  const img = new Image();
+  img.onload = () => {
+    const tamanhoMax = 1400;
+    let w = img.width, h = img.height;
+    if(w > h){ if(w > tamanhoMax){ h = Math.round(h * tamanhoMax/w); w = tamanhoMax; } }
+    else { if(h > tamanhoMax){ w = Math.round(w * tamanhoMax/h); h = tamanhoMax; } }
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+    callback(canvas.toDataURL('image/jpeg', 0.75));
+  };
+  img.onerror = () => callback(dataUrl);
+  img.src = dataUrl;
+}
+
 function handleDoc(input, id, nome){
   if(!input.files||!input.files[0]) return;
   const file = input.files[0];
   if(file.size > 10*1024*1024){ alert('Arquivo muito grande! Máximo 10 MB.'); return; }
 
-  docsEnviados[id] = { nome, arquivo: file.name, tamanho: file.size };
-
-  // Visual: item vira verde
-  document.getElementById('di-'+id).classList.add('enviado');
-  document.getElementById('ds-'+id).style.display='block';
   const label = document.getElementById('dl-'+id);
-  label.style.background='#F0FDF4';
-  label.style.borderColor='#BBF7D0';
-  label.style.color='#16A34A';
-  label.querySelector('i').className='ti ti-check';
+  const icone = label.querySelector('i');
+  const iconeOriginal = icone.className;
+  icone.className = 'ti ti-loader-2';
+  icone.style.animation = 'spin 1s linear infinite';
 
-  // Atualiza progresso
-  const obr=[1,2,3,4];
-  const count = obr.filter(i=>docsEnviados[i]).length;
-  document.getElementById('docs-prog-texto').textContent = count + ' de 4 obrigatórios enviados';
-  document.getElementById('docs-prog-pct').textContent = Math.round(count/4*100)+'%';
-  document.getElementById('docs-prog-bar').style.width = (count/4*100)+'%';
+  const reader = new FileReader();
+  reader.onload = e => {
+    const bruto = e.target.result;
+    const finalizar = (dadosFinal, mimeFinal) => {
+      docsEnviados[id] = { nome, arquivo: file.name, tamanho: file.size, mime: mimeFinal, dados: dadosFinal };
+
+      // Visual: item vira verde
+      document.getElementById('di-'+id).classList.add('enviado');
+      document.getElementById('ds-'+id).style.display='block';
+      label.style.background='#F0FDF4';
+      label.style.borderColor='#BBF7D0';
+      label.style.color='#16A34A';
+      icone.style.animation = '';
+      icone.className = 'ti ti-check';
+
+      // Atualiza progresso
+      const obr=[1,2,3,4];
+      const count = obr.filter(i=>docsEnviados[i]).length;
+      document.getElementById('docs-prog-texto').textContent = count + ' de 4 obrigatórios enviados';
+      document.getElementById('docs-prog-pct').textContent = Math.round(count/4*100)+'%';
+      document.getElementById('docs-prog-bar').style.width = (count/4*100)+'%';
+    };
+    if(file.type === 'application/pdf'){
+      finalizar(bruto, file.type);
+    } else {
+      comprimirImagemDoc(bruto, (comprimido) => finalizar(comprimido, 'image/jpeg'));
+    }
+  };
+  reader.onerror = () => {
+    icone.style.animation = '';
+    icone.className = iconeOriginal;
+    alert('Não consegui ler esse arquivo. Tenta escolher de novo.');
+  };
+  reader.readAsDataURL(file);
 }
 
 // ── Finalizar ─────────────────────────────────────────────────
