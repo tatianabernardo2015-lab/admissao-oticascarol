@@ -2353,7 +2353,11 @@ function renderPaginaAniversariantes(){
       + '<textarea id="aniv-msg-'+a.id+'" style="width:100%;border:1px solid #E5E7EB;border-radius:8px;padding:10px 12px;font-size:13px;min-height:90px;resize:vertical;font-family:inherit;color:#374151">'+msgSugerida+'</textarea>'
       + '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">'
       + '<button onclick="copiarMensagemAniv(\''+a.id+'\',this)" style="background:#F3F4F6;border:none;border-radius:7px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px;color:#374151"><i class="ti ti-copy" style="font-size:14px"></i>Copiar mensagem</button>'
-      + (a.celular ? '<button onclick="enviarWhatsAppAniv(\''+a.id+'\')" style="background:#16A34A;color:white;border:none;border-radius:7px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><i class="ti ti-brand-whatsapp" style="font-size:14px"></i>Enviar via WhatsApp</button>' : '<span style="font-size:11px;color:#9CA3AF">Sem celular cadastrado</span>')
+      + '<button onclick="enviarWhatsAppAniv(\''+a.id+'\')" style="background:#16A34A;color:white;border:none;border-radius:7px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><i class="ti ti-brand-whatsapp" style="font-size:14px"></i>Enviar via WhatsApp</button>'
+      + (!a.celular ? '<span style="font-size:11px;color:#9CA3AF">(sem celular — escolha o contato no WhatsApp)</span>' : '')
+      + (jaEnviado
+          ? '<button onclick="desmarcarEnvioAniv(\''+a.id+'\')" style="background:white;border:1px solid #E5E7EB;color:#6B7280;border-radius:7px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><i class="ti ti-x" style="font-size:14px"></i>Desmarcar envio</button>'
+          : '<button onclick="confirmarEnvioAniv(\''+a.id+'\')" style="background:#EFF6FF;border:1px solid #BFDBFE;color:#1A4B8C;border-radius:7px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><i class="ti ti-check" style="font-size:14px"></i>Confirmar envio</button>')
       + '</div>'
       + '</div>';
   }).join('');
@@ -2431,6 +2435,31 @@ function copiarMensagemAniv(id, btn){
   } else {
     ta.select(); document.execCommand('copy'); finalizar();
   }
+}
+
+// Marca a mensagem de aniversário como enviada manualmente (ex: mandou por
+// outro canal, ligou, ou copiou e colou em vez de usar o botão de WhatsApp)
+function confirmarEnvioAniv(id){
+  const a = admList.find(x=>x.id==id);
+  if(!a) return;
+  a.aniversarioEnviadoAno = new Date().getFullYear();
+  if(a.origemFirebase){
+    dbRH.ref('candidatos/'+a.chaveFirebase+'/aniversarioEnviadoAno').set(a.aniversarioEnviadoAno);
+  } else {
+    saveAdmList();
+  }
+  renderPaginaAniversariantes();
+}
+function desmarcarEnvioAniv(id){
+  const a = admList.find(x=>x.id==id);
+  if(!a) return;
+  delete a.aniversarioEnviadoAno;
+  if(a.origemFirebase){
+    dbRH.ref('candidatos/'+a.chaveFirebase+'/aniversarioEnviadoAno').remove();
+  } else {
+    saveAdmList();
+  }
+  renderPaginaAniversariantes();
 }
 
 function enviarWhatsAppAniv(id){
