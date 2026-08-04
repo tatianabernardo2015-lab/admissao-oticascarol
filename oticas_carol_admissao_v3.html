@@ -4929,20 +4929,22 @@ function goFeriasSubTab(tab, el){
 
 function calcularDadosFerias(a, hoje){
   const dtAdm = new Date(a.dataAdmissaoOficial + 'T00:00');
-  // Se o período aquisitivo foi ajustado manualmente, usa essa data; senão,
-  // calcula automaticamente (admissão + 1 ano). O prazo limite para gozo
-  // é SEMPRE 1 ano depois do fim do período aquisitivo — recalculado sozinho.
+  const ciclosCompletos = (a.historicoFerias||[]).length; // quantos anos de férias já foram confirmados
+  const numeroCiclo = ciclosCompletos + 1;
+  // Se o período aquisitivo ATUAL foi ajustado manualmente, usa essa data; senão,
+  // calcula automaticamente (admissão + 1 ano por ciclo já concluído). O prazo
+  // limite para gozo é SEMPRE 1 ano depois do fim do período aquisitivo.
   const fimAquisitivo = a.fimAquisitivoManual
     ? new Date(a.fimAquisitivoManual + 'T00:00')
-    : (() => { const d = new Date(dtAdm); d.setFullYear(d.getFullYear() + 1); return d; })();
+    : (() => { const d = new Date(dtAdm); d.setFullYear(d.getFullYear() + numeroCiclo); return d; })();
   const fimConcessivo = new Date(fimAquisitivo); fimConcessivo.setFullYear(fimConcessivo.getFullYear() + 1);
-  const mesesTrabalhados = (hoje - dtAdm) / (1000*60*60*24*30.44);
+  const mesesTrabalhados = (hoje - dtAdm) / (1000*60*60*24*30.44) - (ciclosCompletos*12);
   const temDireito = hoje >= fimAquisitivo;
   const sugestao = sugerirMesFerias(fimAquisitivo, fimConcessivo);
   const statusInfo = temDireito
     ? {label:'Direito adquirido', cor:'#16A34A', bg:'#F0FDF4'}
-    : {label:'Em aquisição (' + Math.floor(mesesTrabalhados) + '/12 meses)', cor:'#92400E', bg:'#FFFBEB'};
-  return {a, dtAdm, fimAquisitivo, fimConcessivo, temDireito, sugestao, statusInfo};
+    : {label:'Em aquisição (' + Math.max(0,Math.floor(mesesTrabalhados)) + '/12 meses)', cor:'#92400E', bg:'#FFFBEB'};
+  return {a, dtAdm, fimAquisitivo, fimConcessivo, temDireito, sugestao, statusInfo, numeroCiclo};
 }
 
 function renderPaginaFerias(){
@@ -4982,22 +4984,29 @@ function renderCardFerias(l){
   const programadoTag = fp?.mes
     ? '<span style="background:#EFF6FF;color:#1A4B8C;font-size:11px;padding:4px 10px;border-radius:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px"><i class="ti ti-calendar-check" style="font-size:12px"></i>'+MESES_NOMES[fp.mes-1]+'/'+fp.ano+'</span>'
     : '';
+  const historico = l.a.historicoFerias || [];
+  const cicloTag = '<span style="background:#F3F4F6;color:#6B7280;font-size:11px;padding:4px 10px;border-radius:12px;font-weight:500">Ciclo '+l.numeroCiclo+(historico.length?' · '+historico.length+' já gozado(s)':'')+'</span>';
 
-  // O "gozo confirmado" é vinculado ao mês/ano programado — se um novo mês for
-  // escolhido depois, a confirmação anterior deixa de valer (fica pendente de novo)
-  const fg = l.a.feriasGozo;
-  const gozouEsseperiodo = fp?.mes && fg?.mes === fp.mes && fg?.ano === fp.ano;
-  const gozadoTag = gozouEsseperiodo
-    ? '<span style="background:#F0FDF4;color:#16A34A;font-size:11px;padding:4px 10px;border-radius:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px"><i class="ti ti-check" style="font-size:12px"></i>Férias gozadas</span>'
-    : '';
+  const historicoHtml = historico.length === 0 ? '' :
+    '<details style="margin-bottom:10px">'
+    + '<summary style="cursor:pointer;font-size:12px;color:#1A4B8C;font-weight:500;list-style:none;display:flex;align-items:center;gap:5px"><i class="ti ti-history" style="font-size:14px"></i>Histórico de férias ('+historico.length+')</summary>'
+    + '<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">'
+    + historico.slice().reverse().map(h =>
+        '<div style="display:flex;align-items:center;justify-content:space-between;background:#F9FAFB;border-radius:7px;padding:7px 10px;font-size:12px">'
+        + '<span><strong>Ciclo '+h.ciclo+'</strong> — gozou em '+MESES_NOMES[h.mes-1]+'/'+h.ano+'</span>'
+        + '<span style="color:#9CA3AF;font-size:11px">confirmado em '+new Date(h.confirmadoEm).toLocaleDateString('pt-BR')+'</span>'
+        + '</div>'
+      ).join('')
+    + '<button onclick="desmarcarGozoFerias(\''+l.a.id+'\')" style="align-self:flex-start;margin-top:2px;background:none;border:none;color:#9CA3AF;font-size:11px;cursor:pointer;text-decoration:underline">Desfazer a confirmação mais recente</button>'
+    + '</div></details>';
 
   return '<div style="border:1px solid #E5E7EB;border-radius:10px;padding:14px 16px;margin-bottom:10px">'
     + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">'
     + av
     + '<div style="flex:1;min-width:140px"><div style="font-size:13px;font-weight:600;color:#111827">'+l.a.nome+'</div>'
     + '<div style="font-size:11px;color:#9CA3AF">Admitido em '+l.dtAdm.toLocaleDateString('pt-BR')+'</div></div>'
+    + cicloTag
     + programadoTag
-    + gozadoTag
     + '<span style="background:'+l.statusInfo.bg+';color:'+l.statusInfo.cor+';font-size:11px;padding:4px 10px;border-radius:12px;font-weight:500">'+l.statusInfo.label+'</span>'
     + '</div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;background:#F9FAFB;border-radius:8px;padding:10px 12px;font-size:12px;margin-bottom:10px">'
@@ -5005,12 +5014,11 @@ function renderCardFerias(l){
     + '<div><div style="color:#9CA3AF;margin-bottom:2px">Prazo limite para gozo</div><div style="color:#111827;font-weight:500">'+l.fimConcessivo.toLocaleDateString('pt-BR')+'</div></div>'
     + '<div><div style="color:#9CA3AF;margin-bottom:2px">💡 Sugestão de mês</div><div style="color:#1A4B8C;font-weight:600">'+l.sugestao+'</div></div>'
     + '</div>'
+    + historicoHtml
     + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
-    + '<button onclick="abrirModalProgramarFerias(\''+l.a.id+'\')" style="background:'+(fp?.mes?'#F0FDF4':'#EFF6FF')+';border:1px solid '+(fp?.mes?'#BBF7D0':'#BFDBFE')+';color:'+(fp?.mes?'#16A34A':'#1A4B8C')+';border-radius:7px;padding:7px 14px;font-size:12px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:6px"><i class="ti ti-calendar-event" style="font-size:13px"></i>'+(fp?.mes?'Alterar mês de gozo':'Escolher mês de gozo')+'</button>'
+    + '<button onclick="abrirModalProgramarFerias(\''+l.a.id+'\')" style="background:'+(fp?.mes?'#F0FDF4':'#EFF6FF')+';border:1px solid '+(fp?.mes?'#BBF7D0':'#BFDBFE')+';color:'+(fp?.mes?'#16A34A':'#1A4B8C')+';border-radius:7px;padding:7px 14px;font-size:12px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:6px"><i class="ti ti-calendar-event" style="font-size:13px"></i>'+(fp?.mes?'Alterar mês de gozo':'Programar mês de gozo')+'</button>'
     + (fp?.mes
-        ? (gozouEsseperiodo
-            ? '<button onclick="desmarcarGozoFerias(\''+l.a.id+'\')" style="background:white;border:1px solid #E5E7EB;color:#6B7280;border-radius:7px;padding:7px 14px;font-size:12px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:6px"><i class="ti ti-x" style="font-size:13px"></i>Desmarcar gozo</button>'
-            : '<button onclick="confirmarGozoFerias(\''+l.a.id+'\')" style="background:#16A34A;border:1px solid #16A34A;color:white;border-radius:7px;padding:7px 14px;font-size:12px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:6px"><i class="ti ti-check" style="font-size:13px"></i>Confirmar gozo das férias</button>')
+        ? '<button onclick="confirmarGozoFerias(\''+l.a.id+'\')" style="background:#16A34A;border:1px solid #16A34A;color:white;border-radius:7px;padding:7px 14px;font-size:12px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:6px"><i class="ti ti-check" style="font-size:13px"></i>Confirmar gozo das férias</button>'
         : '')
     + '</div>'
     + '</div>';
@@ -5053,23 +5061,50 @@ function confirmarGozoFerias(id){
   const a = admList.find(x=>x.id==id);
   if(!a || !a.feriasProgramadas?.mes) return;
   const fp = a.feriasProgramadas;
-  if(!confirm('Confirmar que '+a.nome+' gozou as férias de '+MESES_NOMES[fp.mes-1]+'/'+fp.ano+'?')) return;
-  a.feriasGozo = { mes: fp.mes, ano: fp.ano, confirmadoEm: new Date().toISOString() };
+  if(!confirm('Confirmar que '+a.nome+' gozou as férias de '+MESES_NOMES[fp.mes-1]+'/'+fp.ano+'?\n\nIsso arquiva esse período no histórico e já libera a programação do próximo ano.')) return;
+
+  const dados = calcularDadosFerias(a, new Date());
+  a.historicoFerias = a.historicoFerias || [];
+  a.historicoFerias.push({
+    ciclo: dados.numeroCiclo, mes: fp.mes, ano: fp.ano,
+    periodoAquisitivoFim: dados.fimAquisitivo.toISOString().split('T')[0],
+    confirmadoEm: new Date().toISOString(),
+  });
+  // Limpa o ciclo atual e o ajuste manual — o próximo período aquisitivo já
+  // passa a ser calculado automaticamente (admissão + 1 ano por ciclo concluído)
+  delete a.feriasProgramadas;
+  delete a.feriasGozo;
+  delete a.fimAquisitivoManual;
+
   if(a.origemFirebase){
-    dbRH.ref('candidatos/'+a.chaveFirebase+'/feriasGozo').set(a.feriasGozo);
+    dbRH.ref('candidatos/'+a.chaveFirebase).update({
+      historicoFerias: a.historicoFerias, feriasProgramadas: null, feriasGozo: null, fimAquisitivoManual: null,
+    });
   } else {
     saveAdmList();
   }
   renderPaginaFerias();
+  setTimeout(()=>{ alert('✅ Férias de '+a.nome+' arquivadas no histórico! O próximo período aquisitivo já está liberado para programar.'); }, 150);
 }
 // Desfaz a confirmação de gozo (caso tenha sido marcada por engano)
+// Desfaz a última confirmação de gozo (caso tenha sido marcada por engano) —
+// tira do histórico e devolve pro ciclo atual como "programado, aguardando confirmação"
 function desmarcarGozoFerias(id){
   const a = admList.find(x=>x.id==id);
-  if(!a) return;
-  if(!confirm('Desmarcar a confirmação de gozo das férias de '+a.nome+'?')) return;
-  delete a.feriasGozo;
+  if(!a || !a.historicoFerias || !a.historicoFerias.length) return;
+  const ultimo = a.historicoFerias[a.historicoFerias.length-1];
+  if(!confirm('Desfazer a confirmação de gozo de '+a.nome+' ('+MESES_NOMES[ultimo.mes-1]+'/'+ultimo.ano+')?')) return;
+
+  a.historicoFerias.pop();
+  a.feriasProgramadas = { mes: ultimo.mes, ano: ultimo.ano, programadoEm: new Date().toISOString() };
+  a.feriasGozo = { mes: ultimo.mes, ano: ultimo.ano, confirmadoEm: ultimo.confirmadoEm };
+  if(ultimo.periodoAquisitivoFim) a.fimAquisitivoManual = ultimo.periodoAquisitivoFim;
+
   if(a.origemFirebase){
-    dbRH.ref('candidatos/'+a.chaveFirebase+'/feriasGozo').remove();
+    dbRH.ref('candidatos/'+a.chaveFirebase).update({
+      historicoFerias: a.historicoFerias, feriasProgramadas: a.feriasProgramadas,
+      feriasGozo: a.feriasGozo, fimAquisitivoManual: a.fimAquisitivoManual,
+    });
   } else {
     saveAdmList();
   }
