@@ -2740,6 +2740,9 @@ function renderCandidatosOnline(){
     const statusBadge = c.status === 'aguardando_analise'
       ? '<span style="background:#FFFBEB;color:#92400E;font-size:11px;padding:3px 10px;border-radius:10px;font-weight:500">Aguardando análise</span>'
       : '<span style="background:#F0FDF4;color:#16A34A;font-size:11px;padding:3px 10px;border-radius:10px;font-weight:500">Analisado</span>';
+    const admissaoBadge = c.idAdmissaoCriada
+      ? '<span style="background:#EFF6FF;color:#1A4B8C;font-size:11px;padding:3px 10px;border-radius:10px;font-weight:500;margin-left:6px"><i class="ti ti-check" style="font-size:11px"></i> Já é uma admissão no Kanban</span>'
+      : '';
 
     return `<div style="background:white;border:1px solid #E5E7EB;border-radius:12px;padding:16px 18px">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
@@ -2748,7 +2751,7 @@ function renderCandidatosOnline(){
           <div style="font-size:14px;font-weight:600;color:#111827">${c.nome||'Sem nome'}</div>
           <div style="font-size:12px;color:#6B7280">${c.cargo||'Cargo não informado'} · ${c.unidade||'—'}</div>
         </div>
-        ${statusBadge}
+        ${statusBadge}${admissaoBadge}
       </div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;background:#F9FAFB;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px">
         <div><div style="color:#9CA3AF;margin-bottom:2px">CPF</div><div style="color:#111827;font-weight:500">${c.cpf||'—'}</div></div>
@@ -2772,6 +2775,77 @@ function marcarAnalisado(chave){
   const c = candidatosOnline[chave];
   const novoStatus = (c && c.status === 'analisado') ? 'aguardando_analise' : 'analisado';
   dbRH.ref('candidatos/'+chave+'/status').set(novoStatus);
+  if(novoStatus === 'analisado' && c && !c.idAdmissaoCriada){
+    criarAdmissaoDeCandidato(chave, c);
+  }
+}
+
+// Mapeia os nomes de documento do portal do candidato para as chaves usadas
+// no restante do sistema (mesma estrutura da etapa "Documentos" da admissão)
+const MAPA_DOC_PORTAL_PARA_CHAVE = {
+  'RG/CNH':'rg', 'CPF':'cpf', 'CTPS':'ctps', 'Comprovante de endereço':'endereco',
+  'ASO':'aso', 'Foto 3x4':'foto3x4', 'Dados bancários':'bancarios',
+};
+
+// Cria a admissão no Kanban (coluna Cadastro) a partir da ficha de um candidato
+// já analisado — traz os dados pessoais e os documentos que ele anexou no portal.
+function criarAdmissaoDeCandidato(chave, c){
+  const endereco = [c.rua, c.numero].filter(Boolean).join(', ')
+    + (c.complemento ? ' - '+c.complemento : '')
+    + (c.bairro ? ' - '+c.bairro : '')
+    + (c.cidade ? ' - '+c.cidade : '')
+    + (c.uf ? '/'+c.uf : '');
+
+  const nome = c.nome || 'Candidato';
+  const initials = nome.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+  const colors = ['av-b','av-g','av-a','av-gr','av-p'];
+  const color = colors[admList.length % colors.length];
+  const proto = 'ADM-2025-' + (String(admList.length+1).padStart(4,'0'));
+  const usuarioResponsavel = nomeUsuarioParaRegistro();
+  const hoje = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+
+  const registro = {
+    id: Date.now(), initials, color, proto, coluna: 0, data: hoje,
+    nome, celular: c.celular||'', cargo: c.cargo||'', unidade: c.unidade||'',
+    cpf: c.cpf||'', rg: (c.rg||'')+(c.rgOrg?' ('+c.rgOrg+')':''), nascimento: c.nasc||'',
+    sexo: c.sexo||'', estadoCivil: c.estCivil||'', instrucao: c.instrucao||'',
+    email: c.email||'', endereco: endereco.trim().replace(/^-\s*/,''),
+    banco: c.banco||'', agencia: c.agencia||'', conta: c.conta||'',
+    pixTipo: c.pixTipo||'', pixChave: c.pixChave||'',
+    origemCandidatoOnline: chave, // referência de onde veio, para consulta futura
+    criadoPor: usuarioResponsavel, criadoEm: new Date().toISOString(),
+    ultimaEdicaoPor: usuarioResponsavel, ultimaEdicaoEm: new Date().toISOString(),
+    foto: '', documentos: {},
+  };
+
+  // Busca as imagens dos documentos enviados no portal (nó separado no Firebase)
+  // e converte pro mesmo formato usado no resto do sistema
+  dbRH.ref('documentos_imagens/'+chave).once('value').then(snap => {
+    const imagens = snap.val() || [];
+    const nomesDocs = c.documentos || [];
+    nomesDocs.forEach((nomeDoc, i) => {
+      const img = imagens[i];
+      if(!img || !img.dados) return;
+      const chaveDoc = MAPA_DOC_PORTAL_PARA_CHAVE[nomeDoc] || ('doc'+i);
+      registro.documentos[chaveDoc] = { nome: nomeDoc, mime: img.mimeType||'', dados: img.dados };
+    });
+
+    admList.push(registro);
+    salvarAnexosLocal(registro.id, registro.foto, registro.documentos);
+    saveAdmList();
+    renderKanban();
+    updateMetrics();
+    dbRH.ref('candidatos/'+chave+'/idAdmissaoCriada').set(registro.id);
+    setTimeout(()=>{ alert('✅ Admissão de '+nome+' criada no Kanban (protocolo '+proto+'), na coluna Cadastro.'); }, 150);
+  }).catch(() => {
+    // Se não conseguir buscar as imagens, cria a admissão mesmo assim (só sem os documentos)
+    admList.push(registro);
+    saveAdmList();
+    renderKanban();
+    updateMetrics();
+    dbRH.ref('candidatos/'+chave+'/idAdmissaoCriada').set(registro.id);
+    setTimeout(()=>{ alert('✅ Admissão de '+nome+' criada no Kanban (protocolo '+proto+'), na coluna Cadastro.'); }, 150);
+  });
 }
 
 function excluirCandidatoOnline(chave, nome){
