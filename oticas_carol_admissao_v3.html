@@ -2141,9 +2141,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
           <div style="width:68px;height:68px;background:#EFF6FF;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
             <i class="ti ti-circle-check" style="font-size:38px;color:var(--blue)"></i>
           </div>
-          <div style="font-size:19px;font-weight:600;color:#111827;margin-bottom:8px">Admissão concluída!</div>
-          <div style="font-size:13px;color:#6B7280;margin-bottom:22px"><span id="sucNome"></span> foi cadastrado(a) com sucesso. Protocolo: <strong id="sucProto"></strong></div>
-          <div style="display:flex;flex-direction:column;gap:8px;text-align:left;max-width:400px;margin:0 auto">
+          <div id="sucTitulo" style="font-size:19px;font-weight:600;color:#111827;margin-bottom:8px">Admissão concluída!</div>
+          <div id="sucSub" style="font-size:13px;color:#6B7280;margin-bottom:22px"><span id="sucNome"></span> foi cadastrado(a) com sucesso. Protocolo: <strong id="sucProto"></strong></div>
+          <div id="sucChecklist" style="display:flex;flex-direction:column;gap:8px;text-align:left;max-width:400px;margin:0 auto">
             <div style="background:#EFF6FF;padding:11px 14px;border-radius:8px;font-size:13px;color:#1E40AF;display:flex;align-items:center;gap:9px"><i class="ti ti-photo" style="flex-shrink:0"></i>Foto salva no cadastro</div>
             <div style="background:#EFF6FF;padding:11px 14px;border-radius:8px;font-size:13px;color:#1E40AF;display:flex;align-items:center;gap:9px"><i class="ti ti-link" style="flex-shrink:0"></i>Link de documentos enviado ao colaborador</div>
             <div style="background:#FFFBEB;padding:11px 14px;border-radius:8px;font-size:13px;color:#92400E;border:1px solid #FDE68A;display:flex;align-items:center;gap:9px"><i class="ti ti-send" style="flex-shrink:0"></i>Documentação enviada à contabilidade</div>
@@ -3321,11 +3321,13 @@ function finalAdm(){
     admList.push(registro);
   }
   const proto = registro.proto;
+  const foiEdicao = !!editandoAdmId;
   salvarAnexosLocal(registro.id, fotoData, docAnexos);
   editandoAdmId = null;
   saveAdmList();
   renderKanban();
   updateMetrics();
+  if(typeof renderTabelaFuncionarios === 'function') renderTabelaFuncionarios();
 
   if(modoImportacaoDireta){
     // Modo importação: pula o funil do Kanban e vai direto para a confirmação
@@ -3341,6 +3343,18 @@ function finalAdm(){
   document.querySelectorAll('.modal-body > .tab-panel').forEach(p=>p.classList.remove('show'));
   document.getElementById('sucNome').textContent = nome;
   document.getElementById('sucProto').textContent = proto;
+  const tituloSucesso = document.getElementById('sucTitulo');
+  const subSucesso = document.getElementById('sucSub');
+  const checklistSucesso = document.getElementById('sucChecklist');
+  if(foiEdicao){
+    if(tituloSucesso) tituloSucesso.textContent = 'Atualização salva!';
+    if(subSucesso) subSucesso.innerHTML = 'Os dados de <span id="sucNome">'+nome+'</span> foram atualizados com sucesso.';
+    if(checklistSucesso) checklistSucesso.style.display = 'none';
+  } else {
+    if(tituloSucesso) tituloSucesso.textContent = 'Admissão concluída!';
+    if(subSucesso) subSucesso.innerHTML = '<span id="sucNome">'+nome+'</span> foi cadastrado(a) com sucesso. Protocolo: <strong id="sucProto">'+proto+'</strong>';
+    if(checklistSucesso) checklistSucesso.style.display = 'flex';
+  }
   document.getElementById('tpSucesso').classList.add('show');
   document.querySelector('.modal-foot').innerHTML='<button class="btn-blue" onclick="closeModal()" style="width:100%;justify-content:center"><i class="ti ti-home"></i> Voltar ao painel</button>';
 }
