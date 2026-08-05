@@ -651,18 +651,18 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
       </div>
 
       <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
-        <div class="mcard"><div class="mcard-lbl">Documentos de candidatos</div><div class="mcard-val" id="doc-total-cand" style="color:#1A4B8C">0</div></div>
+        <div class="mcard"><div class="mcard-lbl">Colaboradores/candidatos com documentos</div><div class="mcard-val" id="doc-total-cand" style="color:#1A4B8C">0</div></div>
         <div class="mcard"><div class="mcard-lbl">Contratos assinados</div><div class="mcard-val" id="doc-total-contratos" style="color:#16A34A">0</div></div>
         <div class="mcard"><div class="mcard-lbl">Colaboradores sem contrato</div><div class="mcard-val" id="doc-sem-contrato" style="color:#DC2626">0</div></div>
       </div>
 
       <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:14px 18px;margin-bottom:18px;font-size:13px;color:#1E40AF;display:flex;align-items:flex-start;gap:10px">
         <i class="ti ti-info-circle" style="font-size:17px;flex-shrink:0;margin-top:1px"></i>
-        <div>Esta página reúne <strong>automaticamente</strong> os documentos enviados pelos candidatos no Portal (RG, CPF, CTPS, comprovante, foto, ASO) e os contratos assinados anexados na etapa de Assinatura do Kanban. Não é necessário fazer upload aqui — tudo aparece sozinho.</div>
+        <div>Esta página reúne <strong>automaticamente</strong> os documentos anexados na admissão (manual, importação em massa ou vindos do Portal do Candidato) e os contratos assinados anexados na etapa de Assinatura do Kanban. Não é necessário fazer upload aqui — tudo aparece sozinho.</div>
       </div>
 
       <div class="section-card">
-        <div class="section-title"><i class="ti ti-files" style="color:var(--blue)"></i>Documentos enviados por candidatos (Portal Online)</div>
+        <div class="section-title"><i class="ti ti-files" style="color:var(--blue)"></i>Documentos anexados</div>
         <div id="doc-lista-candidatos">
           <div style="padding:32px;text-align:center;color:#9CA3AF">
             <i class="ti ti-cloud-off" style="font-size:32px;display:block;margin-bottom:8px;opacity:.4"></i>
@@ -685,33 +685,100 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
     <!-- ===== FOLHA DE PAGAMENTO ===== -->
     <div class="page" id="pg-folha">
       <div class="ph">
-        <div><div class="pg-title">Folha de pagamento</div><div class="pg-sub">Processamento e controle da folha mensal</div></div>
-        <div style="display:flex;gap:8px">
-          <button class="btn-out"><i class="ti ti-chevron-left"></i></button>
-          <button class="btn-out" id="folha-mes-btn">Junho / 2025</button>
-          <button class="btn-out"><i class="ti ti-chevron-right"></i></button>
-          <button class="btn-blue"><i class="ti ti-calculator"></i>Processar folha</button>
-        </div>
+        <div><div class="pg-title">Folha de pagamento</div><div class="pg-sub">Vendas, compras, faltas, empréstimos e gratificação por colaborador</div></div>
       </div>
-      <div class="folha-header">
-        <div>
-          <div class="folha-mes">Folha de Junho · 2025</div>
-          <div class="folha-info">Competência: 01/06/2025 a 30/06/2025 · Vencimento: 05/07/2025</div>
-        </div>
-        <span class="pill pill-gray">Não processada</span>
-      </div>
+
       <div class="metrics" style="grid-template-columns:repeat(4,1fr)">
-        <div class="mcard"><div class="mcard-lbl">Total de colaboradores</div><div class="mcard-val">0</div></div>
-        <div class="mcard"><div class="mcard-lbl">Salários brutos</div><div class="mcard-val">R$ 0,00</div></div>
-        <div class="mcard"><div class="mcard-lbl">Descontos</div><div class="mcard-val" style="color:#DC2626">R$ 0,00</div></div>
-        <div class="mcard"><div class="mcard-lbl">Líquido total</div><div class="mcard-val" style="color:#166534">R$ 0,00</div></div>
+        <div class="mcard"><div class="mcard-lbl">Total de colaboradores</div><div class="mcard-val" id="folha-total-colab">0</div></div>
+        <div class="mcard"><div class="mcard-lbl">Vendas importadas (Shop9)</div><div class="mcard-val" id="folha-total-vendas" style="color:#1A4B8C">0</div></div>
+        <div class="mcard"><div class="mcard-lbl">Lançamentos no mês</div><div class="mcard-val" id="folha-total-lancamentos" style="color:#92400E">0</div></div>
+        <div class="mcard"><div class="mcard-lbl">Total em lançamentos</div><div class="mcard-val" id="folha-total-valor" style="color:#166534">R$ 0,00</div></div>
       </div>
-      <div class="section-card">
-        <div class="section-title"><i class="ti ti-list" style="color:var(--blue)"></i>Itens da folha</div>
-        <div style="padding:32px;text-align:center;color:#9CA3AF">
-          <i class="ti ti-cash" style="font-size:36px;display:block;margin-bottom:10px;opacity:.4"></i>
-          <div style="font-size:14px;font-weight:500">Nenhum colaborador na folha</div>
-          <div style="font-size:12px;margin-top:4px">Realize admissões para começar a processar a folha</div>
+
+      <div style="display:flex;gap:4px;border-bottom:1px solid var(--border);margin:18px 0;overflow-x:auto">
+        <div class="folha-subtab active" data-ftab="vendas" onclick="goFolhaSubTab('vendas',this)" style="padding:10px 16px;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid var(--blue);color:var(--blue);white-space:nowrap">Vendas (Shop9)</div>
+        <div class="folha-subtab" data-ftab="compra" onclick="goFolhaSubTab('compra',this)" style="padding:10px 16px;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;color:#6B7280;white-space:nowrap">Compras de Funcionários</div>
+        <div class="folha-subtab" data-ftab="domingo" onclick="goFolhaSubTab('domingo',this)" style="padding:10px 16px;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;color:#6B7280;white-space:nowrap">Domingos Trabalhados</div>
+        <div class="folha-subtab" data-ftab="falta" onclick="goFolhaSubTab('falta',this)" style="padding:10px 16px;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;color:#6B7280;white-space:nowrap">Faltas</div>
+        <div class="folha-subtab" data-ftab="emprestimo" onclick="goFolhaSubTab('emprestimo',this)" style="padding:10px 16px;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;color:#6B7280;white-space:nowrap">Empréstimos</div>
+        <div class="folha-subtab" data-ftab="gratificacao" onclick="goFolhaSubTab('gratificacao',this)" style="padding:10px 16px;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;color:#6B7280;white-space:nowrap">Gratificação</div>
+      </div>
+
+      <div id="folha-tab-vendas" class="folha-tabcontent">
+        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+          <button class="btn-blue" onclick="abrirImportacaoShop9()"><i class="ti ti-file-spreadsheet"></i>Importar planilha do Shop9</button>
+          <select id="vendas-loja-filtro" onchange="renderVendasShop9()" style="border:1px solid var(--border);border-radius:8px;padding:0 12px;font-size:13px;background:white">
+            <option value="">Todas as lojas</option>
+          </select>
+          <button class="btn-out" onclick="exportarLancamentosExcel('vendas')"><i class="ti ti-download"></i>Exportar Excel por loja</button>
+        </div>
+        <div id="vendas-lista"></div>
+      </div>
+
+      <div id="folha-tab-compra" class="folha-tabcontent" style="display:none"></div>
+      <div id="folha-tab-domingo" class="folha-tabcontent" style="display:none"></div>
+      <div id="folha-tab-falta" class="folha-tabcontent" style="display:none"></div>
+      <div id="folha-tab-emprestimo" class="folha-tabcontent" style="display:none"></div>
+      <div id="folha-tab-gratificacao" class="folha-tabcontent" style="display:none"></div>
+    </div>
+
+    <!-- ===== MODAL: IMPORTAR VENDAS SHOP9 ===== -->
+    <div class="overlay" id="ov-shop9">
+      <div class="modal" style="max-width:820px">
+        <div class="modal-head">
+          <div><div class="modal-title">Importar vendas do Shop9</div><div class="modal-sub">Planilha com valor vendido e comissão por vendedor(a)</div></div>
+          <button class="modal-close" onclick="fecharImportacaoShop9()"><i class="ti ti-x"></i></button>
+        </div>
+        <div class="modal-body">
+          <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:14px 16px;margin-bottom:16px;font-size:12px;color:#1E40AF;display:flex;align-items:flex-start;gap:10px">
+            <i class="ti ti-info-circle" style="font-size:16px;flex-shrink:0;margin-top:1px"></i>
+            <div>Precisa de uma coluna com o <strong>nome do vendedor</strong> (igual ao cadastro), <strong>valor vendido</strong> e <strong>comissão</strong>. O sistema reconhece pelo nome — se algum não bater com ninguém cadastrado, a linha fica marcada em vermelho, mas não impede o resto.</div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px">
+            <button class="btn-out" onclick="baixarModeloShop9()"><i class="ti ti-download"></i>Baixar modelo (Excel)</button>
+            <label class="btn-blue" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+              <i class="ti ti-upload"></i>Escolher planilha do Shop9
+              <input type="file" id="shop9-arquivo" accept=".xlsx,.xls,.csv" style="display:none" onchange="processarArquivoShop9(this)"/>
+            </label>
+            <input type="month" id="shop9-mes-referencia" style="border:1px solid var(--border);border-radius:8px;padding:0 12px;font-size:13px"/>
+          </div>
+          <div id="shop9-preview"></div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn-ghost" onclick="fecharImportacaoShop9()">Cancelar</button>
+          <button class="btn-blue" id="shop9-btn-confirmar" onclick="confirmarImportacaoShop9()" disabled><i class="ti ti-check"></i> Importar vendas</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== MODAL: NOVO LANÇAMENTO (compra/domingo/falta/empréstimo/gratificação) ===== -->
+    <div class="overlay" id="ov-lancamento">
+      <div class="modal" style="max-width:460px">
+        <div class="modal-head">
+          <div><div class="modal-title" id="lanc-titulo">Novo lançamento</div><div class="modal-sub">Departamento Pessoal</div></div>
+          <button class="modal-close" onclick="fecharLancamento()"><i class="ti ti-x"></i></button>
+        </div>
+        <div class="modal-body">
+          <div class="field" style="margin-bottom:12px">
+            <label>Colaborador(a) <span class="req">*</span></label>
+            <select id="lanc-colaborador"></select>
+          </div>
+          <div class="field" style="margin-bottom:12px">
+            <label>Data <span class="req">*</span></label>
+            <input type="date" id="lanc-data"/>
+          </div>
+          <div class="field" style="margin-bottom:12px" id="lanc-valor-wrap">
+            <label id="lanc-valor-label">Valor (R$)</label>
+            <input type="text" id="lanc-valor" placeholder="0,00"/>
+          </div>
+          <div class="field">
+            <label>Observação</label>
+            <input type="text" id="lanc-obs" placeholder="Detalhe opcional"/>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn-ghost" onclick="fecharLancamento()">Cancelar</button>
+          <button class="btn-blue" onclick="salvarLancamento()"><i class="ti ti-check"></i> Salvar</button>
         </div>
       </div>
     </div>
@@ -2495,6 +2562,7 @@ function nav(id,el){
   if(id === 'terminos') renderPaginaTerminos();
   if(id === 'unidades') renderUnidades();
   if(id === 'funcionarios') renderTabelaFuncionarios();
+  if(id === 'folha') renderFolhaPage();
   if(id === 'relatorios'){ renderRelatorio('admissoes'); }
   if(id === 'profile') renderPaginaProfile();
 }
@@ -2553,12 +2621,10 @@ function saveAdmList(){
   const manuais = admList
     .filter(a => !a.origemFirebase)
     .map(a => {
-      // A foto já vem comprimida (poucos KB) — mantemos ela no Firebase pra
-      // sincronizar de verdade entre computadores. Contrato/documentos ainda
-      // são grandes demais (PDFs/fotos sem compressão), então esses continuam
-      // só localmente, via salvarAnexosLocal().
-      const { contratoDados, documentos, ...rest } = a;
-      return { ...rest, _temContrato: !!contratoDados, _qtdDocumentos: documentos ? Object.keys(documentos).length : 0 };
+      // Foto e documentos já vêm comprimidos — mantemos tudo no Firebase pra
+      // sincronizar de verdade entre computadores (antes ficavam só localmente
+      // e sumiam quando o sistema era aberto em outro navegador/computador).
+      return { ...a };
     });
   // Salva sempre localmente — garante que nada se perde ao fechar o navegador,
   // mesmo quando o Firebase está indisponível (ex: testando o arquivo localmente)
@@ -3202,15 +3268,25 @@ function anexarDoc(key,input){
   const file=input.files[0];
   const reader=new FileReader();
   reader.onload=e=>{
-    docAnexos[key]={nome:file.name,mime:file.type,dados:e.target.result};
-    const fn=document.getElementById('docfn-'+key);
-    if(fn) fn.textContent=file.name;
-    const tag=document.getElementById('doctag-'+key);
-    if(tag){tag.textContent='Recebido';tag.classList.remove('dt-pend','dt-wait');tag.classList.add('dt-ok');}
-    const btn=document.getElementById('docbtn-'+key);
-    if(btn) btn.style.display='none';
-    const rm=document.getElementById('docrm-'+key);
-    if(rm) rm.style.display='flex';
+    const finalizar = (dadosFinal, mimeFinal) => {
+      docAnexos[key]={nome:file.name,mime:mimeFinal,dados:dadosFinal};
+      const fn=document.getElementById('docfn-'+key);
+      if(fn) fn.textContent=file.name;
+      const tag=document.getElementById('doctag-'+key);
+      if(tag){tag.textContent='Recebido';tag.classList.remove('dt-pend','dt-wait');tag.classList.add('dt-ok');}
+      const btn=document.getElementById('docbtn-'+key);
+      if(btn) btn.style.display='none';
+      const rm=document.getElementById('docrm-'+key);
+      if(rm) rm.style.display='flex';
+    };
+    // Fotos de documentos são comprimidas (resolução maior que a foto de perfil,
+    // pra continuar legível) antes de guardar — assim cabem no Firebase e
+    // sincronizam de verdade entre computadores. PDFs vão direto (sem como comprimir).
+    if(file.type === 'application/pdf'){
+      finalizar(e.target.result, file.type);
+    } else {
+      comprimirImagem(e.target.result, 1400, 0.75, (comprimido) => finalizar(comprimido, 'image/jpeg'));
+    }
   };
   reader.readAsDataURL(file);
 }
@@ -3551,9 +3627,13 @@ function anexarContrato(id, input){
         mimeType: file.type,
         nomeArquivo: file.name,
       });
+    } else {
+      saveAdmList();
     }
 
     renderKanban();
+    if(typeof renderTabelaFuncionarios === 'function') renderTabelaFuncionarios();
+    if(typeof renderPaginaDocumentos === 'function' && document.getElementById('pg-documentos')?.classList.contains('show')) renderPaginaDocumentos();
   };
   reader.onerror = () => alert('Erro ao ler o arquivo. Tente novamente.');
   reader.readAsDataURL(file);
@@ -4218,7 +4298,8 @@ function renderTabelaFuncionarios(){
       : '<div class="kav '+a.color+'" style="width:34px;height:34px;font-size:12px">'+a.initials+'</div>';
     const contratoBtn = a.contratoAnexado
       ? '<button onclick="verContratoFuncionario(\''+a.id+'\')" title="Ver contrato assinado" style="background:#F0FDF4;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer"><i class="ti ti-file-check" style="font-size:13px;color:#16A34A"></i></button>'
-      : '<button title="Sem contrato anexado" disabled style="background:#F9FAFB;border:none;border-radius:6px;width:28px;height:28px;cursor:not-allowed"><i class="ti ti-file-off" style="font-size:13px;color:#D1D5DB"></i></button>';
+      : '<button onclick="document.getElementById(\'contrato-input-\'+\''+a.id+'\').click()" title="Anexar contrato de trabalho" style="background:#EFF6FF;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer"><i class="ti ti-file-plus" style="font-size:13px;color:var(--blue)"></i></button>'
+        + '<input type="file" id="contrato-input-'+a.id+'" accept="application/pdf,image/*" style="display:none" onchange="anexarContrato(\''+a.id+'\',this)"/>';
 
     const lojaAtual = unidades.find(u=>u.id==a.lojaAtualId);
     const lojaRegistro = unidades.find(u=>u.id==a.lojaRegistroId);
@@ -4857,35 +4938,48 @@ function removerRegistro(tipo, idx){
 
 // ===== PÁGINA DOCUMENTOS — agrega tudo que já existe no sistema =====
 function renderPaginaDocumentos(){
-  // Documentos enviados pelos candidatos no portal
-  const chaves = Object.keys(candidatosOnline);
-  let totalDocs = 0;
-  const listaCand = document.getElementById('doc-lista-candidatos');
+  // Documentos anexados na admissão (manual, importação em massa, ou vindos do
+  // Portal do Candidato depois de convertidos) — mesma fonte usada na Ficha do colaborador
+  const comDocs = admList.filter(a => a.documentos && Object.keys(a.documentos).length > 0);
+  // Candidatos que enviaram documentos no Portal mas ainda NÃO foram marcados
+  // como analisados (ainda não viraram uma admissão) — mostrados à parte
+  const candidatosNaoConvertidos = Object.keys(candidatosOnline)
+    .map(chave => ({chave, c: candidatosOnline[chave]}))
+    .filter(({c}) => !c.idAdmissaoCriada && (c.documentos||[]).length > 0);
 
-  if(chaves.length === 0){
-    listaCand.innerHTML = '<div style="padding:32px;text-align:center;color:#9CA3AF"><i class="ti ti-cloud-off" style="font-size:32px;display:block;margin-bottom:8px;opacity:.4"></i><div style="font-size:13px">Nenhum documento recebido ainda</div></div>';
-  } else {
-    listaCand.innerHTML = chaves.map(chave => {
-      const c = candidatosOnline[chave];
-      const docs = c.documentos || [];
-      totalDocs += docs.length;
-      if(docs.length === 0) return '';
-      return '<div style="border:1px solid #E5E7EB;border-radius:10px;padding:14px;margin-bottom:10px">'
-        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
-        + '<div style="font-size:13px;font-weight:600;color:#111827">'+(c.nome||'Candidato')+'</div>'
-        + '<span style="font-size:11px;color:#1A4B8C;font-family:monospace">'+(c.proto||'')+'</span>'
-        + '</div>'
-        + '<div style="display:flex;flex-wrap:wrap;gap:6px">' + docs.map(d=>(
-          '<span style="background:#F0FDF4;color:#16A34A;font-size:11px;padding:4px 10px;border-radius:14px;display:inline-flex;align-items:center;gap:4px"><i class="ti ti-file-check" style="font-size:12px"></i>'+(d.nome||'Documento')+'</span>'
-        )).join('') + '</div>'
-        + '<button onclick="verFichaCompleta(\''+chave+'\')" style="margin-top:10px;background:#EFF6FF;border:1px solid #BFDBFE;color:#1A4B8C;border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer;font-weight:500">Ver fotos dos documentos</button>'
-        + '</div>';
-    }).filter(Boolean).join('');
-    if(!listaCand.innerHTML.trim()){
-      listaCand.innerHTML = '<div style="padding:32px;text-align:center;color:#9CA3AF"><i class="ti ti-cloud-off" style="font-size:32px;display:block;margin-bottom:8px;opacity:.4"></i><div style="font-size:13px">Nenhum documento recebido ainda</div></div>';
-    }
-  }
-  document.getElementById('doc-total-cand').textContent = totalDocs;
+  const listaCand = document.getElementById('doc-lista-candidatos');
+  let blocos = [];
+
+  blocos = blocos.concat(comDocs.map(a => {
+    const chavesDocs = Object.keys(a.documentos);
+    return '<div style="border:1px solid #E5E7EB;border-radius:10px;padding:14px;margin-bottom:10px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+      + '<div style="font-size:13px;font-weight:600;color:#111827">'+(a.nome||'Colaborador')+'</div>'
+      + '<span style="font-size:11px;color:#1A4B8C;font-family:monospace">'+(a.proto||'')+'</span>'
+      + '</div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:6px">' + chavesDocs.map(k=>(
+        '<span style="background:#F0FDF4;color:#16A34A;font-size:11px;padding:4px 10px;border-radius:14px;display:inline-flex;align-items:center;gap:4px"><i class="ti ti-file-check" style="font-size:12px"></i>'+(a.documentos[k].nome||DOC_LABELS[k]||k)+'</span>'
+      )).join('') + '</div>'
+      + '<button onclick="abrirFichaFunc(\''+a.id+'\')" style="margin-top:10px;background:#EFF6FF;border:1px solid #BFDBFE;color:#1A4B8C;border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer;font-weight:500">Ver ficha e documentos</button>'
+      + '</div>';
+  }));
+
+  blocos = blocos.concat(candidatosNaoConvertidos.map(({chave, c}) => {
+    const docs = c.documentos || [];
+    return '<div style="border:1px solid #FDE68A;background:#FFFBEB;border-radius:10px;padding:14px;margin-bottom:10px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+      + '<div style="font-size:13px;font-weight:600;color:#111827">'+(c.nome||'Candidato')+' <span style="font-size:10px;color:#92400E;font-weight:500">· ainda não analisado</span></div>'
+      + '<span style="font-size:11px;color:#92400E;font-family:monospace">'+(c.proto||'')+'</span>'
+      + '</div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:6px">' + docs.map(d=>(
+        '<span style="background:white;color:#92400E;border:1px solid #FDE68A;font-size:11px;padding:4px 10px;border-radius:14px;display:inline-flex;align-items:center;gap:4px"><i class="ti ti-file-check" style="font-size:12px"></i>'+(d.nome||'Documento')+'</span>'
+      )).join('') + '</div>'
+      + '<button onclick="verFichaCompleta(\''+chave+'\')" style="margin-top:10px;background:white;border:1px solid #FDE68A;color:#92400E;border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer;font-weight:500">Ver ficha em Candidatos Online</button>'
+      + '</div>';
+  }));
+
+  listaCand.innerHTML = blocos.join('') || '<div style="padding:32px;text-align:center;color:#9CA3AF"><i class="ti ti-cloud-off" style="font-size:32px;display:block;margin-bottom:8px;opacity:.4"></i><div style="font-size:13px">Nenhum documento recebido ainda</div></div>';
+  document.getElementById('doc-total-cand').textContent = comDocs.length + candidatosNaoConvertidos.length;
 
   // Contratos assinados anexados no Kanban / Funcionários
   const comContrato = admList.filter(a => a.contratoAnexado);
@@ -6594,8 +6688,352 @@ if(dbRH){
     }
   });
 }
+// ===== PÁGINA FOLHA DE PAGAMENTO =====
+const TIPO_LANCAMENTO_LABEL = {
+  compra: 'Compra de funcionário', domingo: 'Domingo trabalhado', falta: 'Falta',
+  emprestimo: 'Empréstimo', gratificacao: 'Gratificação',
+};
+const TIPO_LANCAMENTO_ICONE = {
+  compra: 'ti-shopping-cart', domingo: 'ti-calendar-star', falta: 'ti-calendar-x',
+  emprestimo: 'ti-cash-banknote', gratificacao: 'ti-gift',
+};
+const TIPO_LANCAMENTO_COR = {
+  compra: '#1A4B8C', domingo: '#16A34A', falta: '#DC2626',
+  emprestimo: '#92400E', gratificacao: '#7C3AED',
+};
+
+function goFolhaSubTab(tab, el){
+  document.querySelectorAll('.folha-subtab').forEach(t=>{
+    t.classList.remove('active');
+    t.style.borderBottomColor = 'transparent';
+    t.style.color = '#6B7280';
+  });
+  el.classList.add('active');
+  el.style.borderBottomColor = 'var(--blue)';
+  el.style.color = 'var(--blue)';
+  document.querySelectorAll('.folha-tabcontent').forEach(c => c.style.display = 'none');
+  document.getElementById('folha-tab-'+tab).style.display = 'block';
+  if(tab === 'vendas') renderVendasShop9();
+  else renderLancamentosTab(tab);
+}
+
+function colaboradoresAtivosOrdenados(){
+  return admList.filter(a => a.coluna===4 && a.statusEmprego==='ativo')
+    .slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt-BR',{sensitivity:'base'}));
+}
+
+function renderFolhaPage(){
+  const ativos = colaboradoresAtivosOrdenados();
+  document.getElementById('folha-total-colab').textContent = ativos.length;
+  document.getElementById('folha-total-vendas').textContent = vendasShop9.length;
+  document.getElementById('folha-total-lancamentos').textContent = lancamentosFolha.length;
+  const totalValor = lancamentosFolha.reduce((s,l)=>s+(Number(l.valor)||0), 0);
+  document.getElementById('folha-total-valor').textContent = 'R$ '+totalValor.toLocaleString('pt-BR',{minimumFractionDigits:2});
+
+  const abaAtiva = document.querySelector('.folha-subtab.active')?.dataset.ftab || 'vendas';
+  if(abaAtiva === 'vendas') renderVendasShop9();
+  else renderLancamentosTab(abaAtiva);
+}
+
+// ── Vendas Shop9 ──────────────────────────────────────────────
+function renderVendasShop9(){
+  const selLoja = document.getElementById('vendas-loja-filtro');
+  if(selLoja){
+    const valorAtual = selLoja.value;
+    selLoja.innerHTML = '<option value="">Todas as lojas</option>' +
+      unidades.filter(u=>u.status==='Ativa').map(u=>'<option value="'+u.id+'">'+u.nome+'</option>').join('');
+    if(valorAtual && unidades.some(u=>String(u.id)===valorAtual)) selLoja.value = valorAtual;
+  }
+  const filtroLoja = selLoja?.value || '';
+  let lista = vendasShop9.slice().sort((a,b)=> (b.mesReferencia||'').localeCompare(a.mesReferencia||''));
+  if(filtroLoja){
+    lista = lista.filter(v => {
+      const col = admList.find(a=>a.id==v.colaboradorId);
+      return col && String(col.lojaAtualId) === filtroLoja;
+    });
+  }
+  const cont = document.getElementById('vendas-lista');
+  if(lista.length === 0){
+    cont.innerHTML = '<div style="padding:40px;text-align:center;color:#9CA3AF"><i class="ti ti-report-money" style="font-size:32px;display:block;margin-bottom:8px;opacity:.4"></i><div style="font-size:13px">Nenhuma venda importada ainda</div></div>';
+    return;
+  }
+  cont.innerHTML = '<div style="border:1px solid #E5E7EB;border-radius:10px;overflow:hidden">'
+    + '<table style="width:100%;border-collapse:collapse;font-size:13px">'
+    + '<thead><tr style="background:#F9FAFB;text-align:left"><th style="padding:10px 14px">Vendedor(a)</th><th style="padding:10px 14px">Loja</th><th style="padding:10px 14px">Mês ref.</th><th style="padding:10px 14px">Valor vendido</th><th style="padding:10px 14px">Comissão</th><th style="padding:10px 14px"></th></tr></thead><tbody>'
+    + lista.map(v => {
+        const col = admList.find(a=>a.id==v.colaboradorId);
+        const loja = col ? unidades.find(u=>u.id==col.lojaAtualId)?.nome : null;
+        return '<tr style="border-top:1px solid #F3F4F6">'
+          + '<td style="padding:9px 14px">'+v.nome+(col?'':' <span style="color:#DC2626;font-size:11px">(não encontrado)</span>')+'</td>'
+          + '<td style="padding:9px 14px;color:#6B7280">'+(loja||'—')+'</td>'
+          + '<td style="padding:9px 14px;color:#6B7280">'+(v.mesReferencia||'—')+'</td>'
+          + '<td style="padding:9px 14px">R$ '+Number(v.valorVendido||0).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</td>'
+          + '<td style="padding:9px 14px;color:#16A34A;font-weight:500">R$ '+Number(v.comissao||0).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</td>'
+          + '<td style="padding:9px 14px"><button onclick="excluirVendaShop9(\''+v.id+'\')" style="background:none;border:none;color:#DC2626;cursor:pointer"><i class="ti ti-trash" style="font-size:14px"></i></button></td>'
+          + '</tr>';
+      }).join('')
+    + '</tbody></table></div>';
+}
+function excluirVendaShop9(id){
+  if(!confirm('Excluir esse lançamento de venda?')) return;
+  vendasShop9 = vendasShop9.filter(v=>v.id!=id);
+  salvarVendasShop9();
+  renderVendasShop9();
+}
+
+// Modal de importação
+let shop9LinhasValidadas = [];
+function abrirImportacaoShop9(){
+  document.getElementById('shop9-arquivo').value = '';
+  document.getElementById('shop9-preview').innerHTML = '';
+  document.getElementById('shop9-btn-confirmar').disabled = true;
+  document.getElementById('shop9-mes-referencia').value = new Date().toISOString().slice(0,7);
+  shop9LinhasValidadas = [];
+  document.getElementById('ov-shop9').classList.add('open');
+}
+function fecharImportacaoShop9(){
+  document.getElementById('ov-shop9').classList.remove('open');
+}
+function baixarModeloShop9(){
+  if(typeof XLSX === 'undefined'){ alert('A biblioteca de planilhas ainda não carregou. Tente novamente em alguns segundos.'); return; }
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Vendedor', 'Valor vendido', 'Comissão'],
+    ['Maria da Silva', '5200,00', '260,00'],
+  ]);
+  ws['!cols'] = [{wch:26},{wch:16},{wch:14}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Vendas Shop9');
+  XLSX.writeFile(wb, 'modelo_vendas_shop9.xlsx');
+}
+function processarArquivoShop9(input){
+  if(!input.files || !input.files[0]) return;
+  if(typeof XLSX === 'undefined'){ alert('A biblioteca de planilhas ainda não carregou. Tente novamente em alguns segundos.'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      const wb = XLSX.read(e.target.result, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const linhas = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
+      const naoVazias = linhas.filter(l => l.some(c => String(c||'').trim() !== ''));
+      const cabecalho = (naoVazias[0]||[]).map(normalizarCabecalho);
+      const idxNome = cabecalho.findIndex(h => h.includes('vendedor') || h.includes('nome') || h.includes('colaborador'));
+      const idxValor = cabecalho.findIndex(h => h.includes('valor') || h.includes('vendido') || h.includes('venda'));
+      const idxComissao = cabecalho.findIndex(h => h.includes('comiss'));
+      const dados = naoVazias.slice(1);
+      const ativos = colaboradoresAtivosOrdenados();
+      shop9LinhasValidadas = dados.map(linha => {
+        const nome = String(linha[idxNome>=0?idxNome:0]||'').trim();
+        const valorVendido = String(linha[idxValor>=0?idxValor:1]||'0').replace(/[^\d,.-]/g,'').replace(',','.');
+        const comissao = String(linha[idxComissao>=0?idxComissao:2]||'0').replace(/[^\d,.-]/g,'').replace(',','.');
+        const col = ativos.find(a => (a.nome||'').trim().toLowerCase() === nome.toLowerCase());
+        return { nome, valorVendido: parseFloat(valorVendido)||0, comissao: parseFloat(comissao)||0, colaboradorId: col?.id, encontrado: !!col };
+      }).filter(l => l.nome);
+      renderPreviewShop9();
+    }catch(err){
+      document.getElementById('shop9-preview').innerHTML = '<div style="color:#DC2626;font-size:13px;padding:12px;background:#FEF2F2;border-radius:8px">Não consegui ler esse arquivo. Confira se é um .xlsx, .xls ou .csv válido.</div>';
+      document.getElementById('shop9-btn-confirmar').disabled = true;
+    }
+  };
+  reader.readAsArrayBuffer(input.files[0]);
+}
+function renderPreviewShop9(){
+  const encontrados = shop9LinhasValidadas.filter(l=>l.encontrado);
+  const naoEncontrados = shop9LinhasValidadas.filter(l=>!l.encontrado);
+  let html = '<div style="display:flex;gap:16px;margin-bottom:10px">'
+    + '<div style="font-size:13px"><strong style="color:#16A34A">'+encontrados.length+'</strong> reconhecidos</div>'
+    + (naoEncontrados.length ? '<div style="font-size:13px"><strong style="color:#DC2626">'+naoEncontrados.length+'</strong> vendedor(es) não encontrado(s) (serão ignorados)</div>' : '')
+    + '</div>';
+  html += '<div style="max-height:320px;overflow:auto;border:1px solid #E5E7EB;border-radius:10px">'
+    + '<table style="width:100%;border-collapse:collapse;font-size:12px">'
+    + '<thead><tr style="background:#F9FAFB;text-align:left"><th style="padding:8px 10px">Vendedor</th><th style="padding:8px 10px">Valor vendido</th><th style="padding:8px 10px">Comissão</th><th style="padding:8px 10px">Status</th></tr></thead><tbody>'
+    + shop9LinhasValidadas.map(l => '<tr style="border-top:1px solid #F3F4F6">'
+        + '<td style="padding:8px 10px">'+l.nome+'</td>'
+        + '<td style="padding:8px 10px">R$ '+l.valorVendido.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</td>'
+        + '<td style="padding:8px 10px">R$ '+l.comissao.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</td>'
+        + '<td style="padding:8px 10px">'+(l.encontrado ? '<span style="color:#16A34A;font-weight:500">✓ OK</span>' : '<span style="color:#DC2626">✗ não encontrado</span>')+'</td>'
+        + '</tr>').join('')
+    + '</tbody></table></div>';
+  document.getElementById('shop9-preview').innerHTML = html;
+  document.getElementById('shop9-btn-confirmar').disabled = encontrados.length === 0;
+}
+function confirmarImportacaoShop9(){
+  const mesReferencia = document.getElementById('shop9-mes-referencia').value;
+  const validas = shop9LinhasValidadas.filter(l=>l.encontrado);
+  if(validas.length === 0) return;
+  validas.forEach((l,i) => {
+    vendasShop9.push({
+      id: Date.now()+i, colaboradorId: l.colaboradorId, nome: l.nome,
+      valorVendido: l.valorVendido, comissao: l.comissao, mesReferencia,
+      importadoEm: new Date().toISOString(), importadoPor: nomeUsuarioParaRegistro(),
+    });
+  });
+  salvarVendasShop9();
+  renderVendasShop9();
+  fecharImportacaoShop9();
+  setTimeout(()=>{ alert('✅ '+validas.length+' venda(s) importada(s) com sucesso!'); }, 150);
+}
+
+// ── Lançamentos (compra/domingo/falta/empréstimo/gratificação) ─
+function renderLancamentosTab(tipo){
+  const cont = document.getElementById('folha-tab-'+tipo);
+  if(!cont) return;
+  const itens = lancamentosFolha.filter(l=>l.tipo===tipo).sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+  const cor = TIPO_LANCAMENTO_COR[tipo];
+  let html = '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">'
+    + '<button class="btn-blue" onclick="abrirNovoLancamento(\''+tipo+'\')"><i class="ti ti-plus"></i>Novo lançamento</button>'
+    + '<button class="btn-out" onclick="exportarLancamentosExcel(\''+tipo+'\')"><i class="ti ti-download"></i>Exportar Excel por loja</button>'
+    + '</div>';
+  if(itens.length === 0){
+    html += '<div style="padding:40px;text-align:center;color:#9CA3AF"><i class="ti '+TIPO_LANCAMENTO_ICONE[tipo]+'" style="font-size:32px;display:block;margin-bottom:8px;opacity:.4"></i><div style="font-size:13px">Nenhum lançamento de '+TIPO_LANCAMENTO_LABEL[tipo].toLowerCase()+' ainda</div></div>';
+  } else {
+    html += '<div style="border:1px solid #E5E7EB;border-radius:10px;overflow:hidden">'
+      + '<table style="width:100%;border-collapse:collapse;font-size:13px">'
+      + '<thead><tr style="background:#F9FAFB;text-align:left"><th style="padding:10px 14px">Colaborador(a)</th><th style="padding:10px 14px">Loja</th><th style="padding:10px 14px">Data</th><th style="padding:10px 14px">Valor</th><th style="padding:10px 14px">Observação</th><th style="padding:10px 14px"></th></tr></thead><tbody>'
+      + itens.map(l => {
+          const col = admList.find(a=>a.id==l.colaboradorId);
+          const loja = col ? unidades.find(u=>u.id==col.lojaAtualId)?.nome : null;
+          return '<tr style="border-top:1px solid #F3F4F6">'
+            + '<td style="padding:9px 14px">'+(l.nome||col?.nome||'—')+'</td>'
+            + '<td style="padding:9px 14px;color:#6B7280">'+(loja||'—')+'</td>'
+            + '<td style="padding:9px 14px;color:#6B7280">'+(l.data?new Date(l.data+'T00:00').toLocaleDateString('pt-BR'):'—')+'</td>'
+            + '<td style="padding:9px 14px;font-weight:500;color:'+cor+'">'+(l.valor?'R$ '+Number(l.valor).toLocaleString('pt-BR',{minimumFractionDigits:2}):'—')+'</td>'
+            + '<td style="padding:9px 14px;color:#6B7280">'+(l.obs||'—')+'</td>'
+            + '<td style="padding:9px 14px"><button onclick="excluirLancamento(\''+l.id+'\')" style="background:none;border:none;color:#DC2626;cursor:pointer"><i class="ti ti-trash" style="font-size:14px"></i></button></td>'
+            + '</tr>';
+        }).join('')
+      + '</tbody></table></div>';
+  }
+  cont.innerHTML = html;
+}
+
+let tipoLancamentoAtual = null;
+function abrirNovoLancamento(tipo){
+  tipoLancamentoAtual = tipo;
+  document.getElementById('lanc-titulo').textContent = 'Novo lançamento — '+TIPO_LANCAMENTO_LABEL[tipo];
+  document.getElementById('lanc-valor-wrap').style.display = (tipo==='falta') ? 'none' : 'block';
+  document.getElementById('lanc-valor-label').textContent = tipo==='domingo' ? 'Valor do dia (R$)' : tipo==='emprestimo' ? 'Valor emprestado (R$)' : tipo==='gratificacao' ? 'Valor da gratificação (R$)' : 'Valor (R$)';
+  const sel = document.getElementById('lanc-colaborador');
+  sel.innerHTML = '<option value="">-- Selecione --</option>' +
+    colaboradoresAtivosOrdenados().map(a=>'<option value="'+a.id+'">'+a.nome+'</option>').join('');
+  document.getElementById('lanc-data').value = new Date().toISOString().split('T')[0];
+  document.getElementById('lanc-valor').value = '';
+  document.getElementById('lanc-obs').value = '';
+  document.getElementById('ov-lancamento').classList.add('open');
+}
+function fecharLancamento(){
+  document.getElementById('ov-lancamento').classList.remove('open');
+  tipoLancamentoAtual = null;
+}
+function salvarLancamento(){
+  const colId = document.getElementById('lanc-colaborador').value;
+  const data = document.getElementById('lanc-data').value;
+  const valorStr = document.getElementById('lanc-valor').value.replace(/[^\d,.-]/g,'').replace(',','.');
+  const obs = document.getElementById('lanc-obs').value.trim();
+  if(!colId){ alert('Selecione o colaborador.'); return; }
+  if(!data){ alert('Informe a data.'); return; }
+  const col = admList.find(a=>a.id==colId);
+  lancamentosFolha.push({
+    id: Date.now(), tipo: tipoLancamentoAtual, colaboradorId: colId, nome: col?.nome||'',
+    data, valor: parseFloat(valorStr)||0, obs,
+    criadoPor: nomeUsuarioParaRegistro(), criadoEm: new Date().toISOString(),
+  });
+  salvarLancamentosFolha();
+  renderLancamentosTab(tipoLancamentoAtual);
+  renderFolhaPage();
+  fecharLancamento();
+}
+function excluirLancamento(id){
+  if(!confirm('Excluir esse lançamento?')) return;
+  const item = lancamentosFolha.find(l=>l.id==id);
+  lancamentosFolha = lancamentosFolha.filter(l=>l.id!=id);
+  salvarLancamentosFolha();
+  if(item) renderLancamentosTab(item.tipo);
+  renderFolhaPage();
+}
+
+// ── Exportação por loja em Excel ────────────────────────────────
+function exportarLancamentosExcel(tipo){
+  if(typeof XLSX === 'undefined'){ alert('A biblioteca de planilhas ainda não carregou. Tente novamente em alguns segundos.'); return; }
+  const wb = XLSX.utils.book_new();
+
+  if(tipo === 'vendas'){
+    const porLoja = {};
+    vendasShop9.forEach(v => {
+      const col = admList.find(a=>a.id==v.colaboradorId);
+      const lojaNome = col ? (unidades.find(u=>u.id==col.lojaAtualId)?.nome || 'Sem loja') : 'Sem loja';
+      porLoja[lojaNome] = porLoja[lojaNome] || [];
+      porLoja[lojaNome].push([v.nome, v.mesReferencia||'', v.valorVendido||0, v.comissao||0]);
+    });
+    const nomes = Object.keys(porLoja);
+    if(nomes.length === 0){ alert('Não há vendas para exportar ainda.'); return; }
+    nomes.forEach(lojaNome => {
+      const ws = XLSX.utils.aoa_to_sheet([['Vendedor(a)','Mês referência','Valor vendido','Comissão'], ...porLoja[lojaNome]]);
+      ws['!cols'] = [{wch:26},{wch:14},{wch:16},{wch:14}];
+      XLSX.utils.book_append_sheet(wb, ws, lojaNome.substring(0,31));
+    });
+    XLSX.writeFile(wb, 'vendas_shop9_por_loja.xlsx');
+    return;
+  }
+
+  const itens = lancamentosFolha.filter(l=>l.tipo===tipo);
+  if(itens.length === 0){ alert('Não há lançamentos de '+TIPO_LANCAMENTO_LABEL[tipo].toLowerCase()+' para exportar ainda.'); return; }
+  const porLoja = {};
+  itens.forEach(l => {
+    const col = admList.find(a=>a.id==l.colaboradorId);
+    const lojaNome = col ? (unidades.find(u=>u.id==col.lojaAtualId)?.nome || 'Sem loja') : 'Sem loja';
+    porLoja[lojaNome] = porLoja[lojaNome] || [];
+    porLoja[lojaNome].push([l.nome||'', l.data||'', l.valor||0, l.obs||'']);
+  });
+  Object.keys(porLoja).forEach(lojaNome => {
+    const ws = XLSX.utils.aoa_to_sheet([['Colaborador(a)','Data','Valor','Observação'], ...porLoja[lojaNome]]);
+    ws['!cols'] = [{wch:26},{wch:12},{wch:14},{wch:30}];
+    XLSX.utils.book_append_sheet(wb, ws, lojaNome.substring(0,31));
+  });
+  XLSX.writeFile(wb, TIPO_LANCAMENTO_LABEL[tipo].toLowerCase().replace(/\s+/g,'_')+'_por_loja.xlsx');
+}
+
 let editandoId = null;
 let excluindoId = null;
+
+// ===== FOLHA DE PAGAMENTO: vendas (Shop9) e lançamentos (compra/domingo/falta/empréstimo/gratificação) =====
+let vendasShop9 = [];
+let lancamentosFolha = [];
+function salvarVendasShop9(){
+  try{ localStorage.setItem('vendasShop9Local', JSON.stringify(vendasShop9)); }catch(e){}
+  if(dbRH) dbRH.ref('vendasShop9').set(vendasShop9);
+}
+function salvarLancamentosFolha(){
+  try{ localStorage.setItem('lancamentosFolhaLocal', JSON.stringify(lancamentosFolha)); }catch(e){}
+  if(dbRH) dbRH.ref('lancamentosFolha').set(lancamentosFolha);
+}
+(function restaurarFolhaLocal(){
+  try{
+    const v = localStorage.getItem('vendasShop9Local'); if(v) vendasShop9 = JSON.parse(v);
+    const l = localStorage.getItem('lancamentosFolhaLocal'); if(l) lancamentosFolha = JSON.parse(l);
+  }catch(e){}
+})();
+if(dbRH){
+  dbRH.ref('vendasShop9').on('value', snap => {
+    const dados = snap.val();
+    if(Array.isArray(dados)){
+      vendasShop9 = dados;
+      try{ localStorage.setItem('vendasShop9Local', JSON.stringify(vendasShop9)); }catch(e){}
+      if(typeof renderVendasShop9 === 'function' && document.getElementById('pg-folha')?.classList.contains('show')) renderVendasShop9();
+    } else if(dados === null && vendasShop9.length){
+      dbRH.ref('vendasShop9').set(vendasShop9);
+    }
+  });
+  dbRH.ref('lancamentosFolha').on('value', snap => {
+    const dados = snap.val();
+    if(Array.isArray(dados)){
+      lancamentosFolha = dados;
+      try{ localStorage.setItem('lancamentosFolhaLocal', JSON.stringify(lancamentosFolha)); }catch(e){}
+      if(typeof renderFolhaPage === 'function' && document.getElementById('pg-folha')?.classList.contains('show')) renderFolhaPage();
+    } else if(dados === null && lancamentosFolha.length){
+      dbRH.ref('lancamentosFolha').set(lancamentosFolha);
+    }
+  });
+}
 
 const avatarColors = [
   {bg:'#EFF6FF',cl:'#1D4ED8'},{bg:'#F0FDF4',cl:'#15803D'},{bg:'#FFFBEB',cl:'#B45309'},
