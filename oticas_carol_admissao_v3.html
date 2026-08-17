@@ -4276,7 +4276,7 @@ function renderTabelaFuncionarios(){
   }
   const filtroLoja = selFiltroLoja?.value || '';
 
-  let funcionarios = admList.filter(a => a.coluna === 4 && a.statusEmprego === 'ativo');
+  let funcionarios = admList.filter(a => a.coluna === 4 && (a.statusEmprego === 'ativo' || a.statusEmprego === 'desligado'));
 
   // Métricas de turnover (últimos 12 meses)
   const hoje = new Date();
