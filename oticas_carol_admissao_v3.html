@@ -3544,9 +3544,10 @@ function renderKanban(){
     // sai do funil do Kanban e passa a ser acompanhado na página "Funcionários".
     // Coluna "Admitido" mostra os cards que chegaram até aqui mas ainda aguardam
     // a confirmação final (data de admissão + loja). Assim que confirmados
-    // (statusEmprego='ativo'), saem do Kanban e passam a aparecer só em "Funcionários".
+    // (statusEmprego='ativo') ou desligados, saem do Kanban e passam a aparecer
+    // só em "Funcionários".
     const cards = col.id === 4
-      ? admList.filter(a => (a.coluna||0) === 4 && a.statusEmprego !== 'ativo')
+      ? admList.filter(a => (a.coluna||0) === 4 && a.statusEmprego !== 'ativo' && a.statusEmprego !== 'desligado')
       : admList.filter(a => (a.coluna||0) === col.id);
     document.getElementById('cnt'+col.id).textContent = cards.length;
     if(cards.length === 0){
@@ -3569,6 +3570,9 @@ function renderKanban(){
       const naoConfirmarBtn = col.id === 4
         ? '<button onclick="naoConfirmarAdmissao(\''+a.id+'\')" title="Não confirmar (devolver para Assinatura)" style="background:#FEF2F2;border:none;border-radius:5px;width:24px;height:24px;cursor:pointer;display:flex;align-items:center;justify-content:center"><i class="ti ti-x" style="font-size:12px;color:#DC2626"></i></button>'
         : '';
+      const desligarKanbanBtn = col.id === 4
+        ? '<button onclick="abrirModalDesligamento(\''+a.id+'\')" title="Registrar desligamento" style="background:#FEF2F2;border:none;border-radius:5px;width:24px;height:24px;cursor:pointer;display:flex;align-items:center;justify-content:center"><i class="ti ti-door-exit" style="font-size:12px;color:#DC2626"></i></button>'
+        : '';
       const delBtn = '<button onclick="excluirCard(\''+a.id+'\')" title="Excluir lançamento" style="background:#FEF2F2;border:none;border-radius:5px;width:24px;height:24px;cursor:pointer;display:flex;align-items:center;justify-content:center"><i class="ti ti-trash" style="font-size:12px;color:#DC2626"></i></button>';
       const editBtn = '<button onclick="editarCard(\''+a.id+'\')" title="Editar lançamento" style="background:#F3F4F6;border:none;border-radius:5px;width:24px;height:24px;cursor:pointer;display:flex;align-items:center;justify-content:center"><i class="ti ti-pencil" style="font-size:12px;color:#374151"></i></button>';
       const tagColor = col.id===4 ? 'tag-t' : col.id===1 ? 'tag-d' : 'tag-u';
@@ -3590,7 +3594,7 @@ function renderKanban(){
         + '<div class="kprog"><div class="kprog-f" style="width:'+col.prog+'%;background:'+(col.id===4?'#16A34A':'var(--blue)')+'"></div></div>'
         + contratoRow
         + '<div class="kft"><span class="kdate"><i class="ti ti-calendar" style="font-size:11px"></i>'+a.data+(a.criadoPor?' · '+a.criadoPor:'')+'</span>'
-        + '<div style="display:flex;gap:3px;align-items:center">'+prevBtn+nextBtn+confirmarBtn+naoConfirmarBtn+editBtn+delBtn+'</div>'
+        + '<div style="display:flex;gap:3px;align-items:center">'+prevBtn+nextBtn+confirmarBtn+naoConfirmarBtn+desligarKanbanBtn+editBtn+delBtn+'</div>'
         + '</div></div>';
     }).join('');
   });
