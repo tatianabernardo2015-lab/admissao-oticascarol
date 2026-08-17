@@ -2071,7 +2071,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;color:#11182
         <div class="fsec">
           <div class="fsec-title"><i class="ti ti-building-store" style="color:var(--blue)"></i>Vínculo e cargo</div>
           <div class="fgrid">
-            <div class="field"><label>Unidade <span class="req">*</span></label><select id="f-unidade" onchange="sincronizarLojaAtualWizard()"><option value="">-- Selecione --</option><option>Gkanx Ótica Ltda</option><option>Abr Ótica Ltda - Epp</option><option>Foris Ótica Ltda</option><option>Binho Ótica Ltda</option><option>Bena Ótica Ltda</option><option>Ankat Ótica Eireli - Epp</option><option>Kale Ótica Ltda</option><option>Leib Ótica Eireli - Epp</option></select></div>
+            <div class="field"><label>Unidade <span class="req">*</span></label><select id="f-unidade" onchange="sincronizarLojaAtualWizard()"><option value="">-- Selecione --</option></select></div>
             <div class="field"><label>Loja atual</label><select id="f-lojaatual"><option value="">-- Selecione --</option></select></div>
             <div class="field fcol2"><label>Cargo <span class="req">*</span></label><input type="text" id="f-cargo" placeholder="Ex: Vendedor(a), Ótico Técnico, Atendente..."/></div>
             <div class="field"><label>Data de admissão <span class="req">*</span></label><input type="date" id="f-dataadmissao"/></div>
@@ -2949,10 +2949,14 @@ function criarAdmissaoDeCandidato(chave, c){
   const proto = 'ADM-2025-' + (String(admList.length+1).padStart(4,'0'));
   const usuarioResponsavel = nomeUsuarioParaRegistro();
   const hoje = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+  // Garante que a unidade citada pelo candidato exista de verdade no sistema —
+  // se for um nome novo (ex: digitado no link ou não cadastrado ainda), cria
+  // automaticamente, do jeito que a importação em massa já faz.
+  const unidadeReal = c.unidade ? garantirUnidade(c.unidade) : null;
 
   const registro = {
     id: Date.now(), initials, color, proto, coluna: 0, data: hoje,
-    nome, celular: c.celular||'', cargo: c.cargo||'', unidade: c.unidade||'',
+    nome, celular: c.celular||'', cargo: c.cargo||'', unidade: unidadeReal?.nome || c.unidade || '',
     cpf: c.cpf||'', rg: (c.rg||'')+(c.rgOrg?' ('+c.rgOrg+')':''), nascimento: c.nasc||'',
     sexo: c.sexo||'', estadoCivil: c.estCivil||'', instrucao: c.instrucao||'',
     email: c.email||'', endereco: endereco.trim().replace(/^-\s*/,''),
@@ -3186,6 +3190,7 @@ function openModal(){
   // reset campos de texto (evita que dados de um cadastro anterior fiquem visíveis)
   ['f-nome','f-celular','f-cargo','f-cpf','f-rg','f-nasc','f-sexo','f-civil','f-instrucao','f-email','f-endereco','f-dataadmissao','f-salario','f-jornada','f-horario','f-banco','f-agencia','f-conta','pix-tipo','pix-chave'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
   popularLojaAtualWizard();
+  popularUnidadeWizard();
   const fu = document.getElementById('f-unidade'); if(fu) fu.value='';
   const rgc = document.getElementById('rg-contrato');
   if(rgc) rgc.querySelectorAll('.ropt').forEach((o,i)=>o.classList.toggle('sel', i===0));
@@ -4119,6 +4124,7 @@ function editarCard(id){
   // valores antigos do formulário de quando ele ainda era só um lançamento.
   const unidRegistroReal = unidades.find(u=>u.id==a.lojaRegistroId)?.nome;
   const lojaAtualReal = unidades.find(u=>u.id==a.lojaAtualId)?.nome;
+  popularUnidadeWizard();
   if(document.getElementById('f-unidade')) document.getElementById('f-unidade').value = unidRegistroReal || a.unidade || '';
   const setVal = (id,v) => { const el=document.getElementById(id); if(el) el.value = v || ''; };
   setVal('f-cpf', a.cpf);
@@ -4178,6 +4184,17 @@ function editarCard(id){
 // inclusive lojas criadas na hora, via importação em massa ou cadastro manual)
 function popularLojaAtualWizard(){
   const sel = document.getElementById('f-lojaatual');
+  if(!sel) return;
+  const valorAtual = sel.value;
+  sel.innerHTML = '<option value="">-- Selecione --</option>' +
+    unidades.filter(u=>u.status==='Ativa').map(u=>'<option>'+u.nome+'</option>').join('');
+  if(valorAtual) sel.value = valorAtual;
+}
+// Popula o select "Unidade" com as unidades reais cadastradas (antes era uma lista
+// fixa de 8 lojas — nomes diferentes, como os que vêm do Portal do Candidato ou de
+// importações, ficavam sem selecionar nada, mesmo estando salvos no registro)
+function popularUnidadeWizard(){
+  const sel = document.getElementById('f-unidade');
   if(!sel) return;
   const valorAtual = sel.value;
   sel.innerHTML = '<option value="">-- Selecione --</option>' +
