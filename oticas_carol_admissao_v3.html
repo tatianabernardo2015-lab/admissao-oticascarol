@@ -2955,13 +2955,17 @@ function criarAdmissaoDeCandidato(chave, c){
   const unidadeReal = c.unidade ? garantirUnidade(c.unidade) : null;
 
   const registro = {
-    id: Date.now(), initials, color, proto, coluna: 0, data: hoje,
+    id: Date.now(), initials, color, proto, coluna: 1, data: hoje, // já entra em "Documentação" — cadastro e docs já vieram do portal
     nome, celular: c.celular||'', cargo: c.cargo||'', unidade: unidadeReal?.nome || c.unidade || '',
     cpf: c.cpf||'', rg: (c.rg||'')+(c.rgOrg?' ('+c.rgOrg+')':''), nascimento: c.nasc||'',
     sexo: c.sexo||'', estadoCivil: c.estCivil||'', instrucao: c.instrucao||'',
     email: c.email||'', endereco: endereco.trim().replace(/^-\s*/,''),
     banco: c.banco||'', agencia: c.agencia||'', conta: c.conta||'',
     pixTipo: c.pixTipo||'', pixChave: c.pixChave||'',
+    cep: c.cep||'', complemento: c.complemento||'', tipoConta: c.tipoConta||'',
+    nomeMae: c.mae||'', nomePai: c.pai||'',
+    pis: c.pis||'', ctpsNum: c.ctpsNum||'', ctpsSerie: c.ctpsSerie||'', ctpsUf: c.ctpsUf||'',
+    deficiencia: !!c.deficiencia, defTipo: c.defTipo||'', outroEmprego: !!c.outroEmprego,
     origemCandidatoOnline: chave, // referência de onde veio, para consulta futura
     criadoPor: usuarioResponsavel, criadoEm: new Date().toISOString(),
     ultimaEdicaoPor: usuarioResponsavel, ultimaEdicaoEm: new Date().toISOString(),
@@ -4636,7 +4640,21 @@ function renderDadosAdmissaoFunc(a){
     + campoInfoFunc('Celular', a.celular)
     + campoInfoFunc('E-mail', a.email)
     + campoInfoFunc('Endereço completo', a.endereco)
+    + campoInfoFunc('CEP', a.cep)
+    + campoInfoFunc('Complemento', a.complemento)
     + '</div>';
+
+  if(a.nomeMae || a.nomePai || a.pis || a.ctpsNum){
+    html += '<div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:10px">Filiação e dados trabalhistas</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px">'
+      + campoInfoFunc('Nome da mãe', a.nomeMae)
+      + campoInfoFunc('Nome do pai', a.nomePai)
+      + campoInfoFunc('PIS', a.pis)
+      + campoInfoFunc('CTPS', a.ctpsNum ? a.ctpsNum+(a.ctpsSerie?' série '+a.ctpsSerie:'')+(a.ctpsUf?'/'+a.ctpsUf:'') : '')
+      + campoInfoFunc('Pessoa com deficiência', a.deficiencia ? 'Sim'+(a.defTipo?' — '+a.defTipo:'') : 'Não')
+      + campoInfoFunc('Possui outro emprego', a.outroEmprego ? 'Sim' : 'Não')
+      + '</div>';
+  }
 
   html += '<div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:10px">Vínculo e cargo</div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px">'
@@ -4655,6 +4673,7 @@ function renderDadosAdmissaoFunc(a){
     + campoInfoFunc('Banco', a.banco)
     + campoInfoFunc('Agência', a.agencia)
     + campoInfoFunc('Conta corrente', a.conta)
+    + campoInfoFunc('Tipo de conta', a.tipoConta)
     + campoInfoFunc('Tipo de chave PIX', a.pixTipo)
     + campoInfoFunc('Chave PIX', a.pixChave)
     + '</div>';
